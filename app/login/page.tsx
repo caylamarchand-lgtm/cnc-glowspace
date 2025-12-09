@@ -85,16 +85,15 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* ✅ REAL SIGNUP LINK – no more “coming soon” */}
         <p className="mt-4 text-center text-[11px] text-slate-400">
-          New here?{" "}
-          <a
-            href="/signup"
-            className="text-pink-400 hover:text-pink-300 underline underline-offset-4"
-          >
-            Join the Glow Universe ✨ Sign up now!
-          </a>
-        </p>
+  New here?{" "}
+  <a
+    href="/signup"
+    className="text-purple-300 hover:text-purple-200 underline"
+  >
+    Join the Glow Universe ✨ Sign up now!
+  </a>
+</p>
 
         <p className="mt-4 text-center text-[11px] text-slate-500">
           <a
