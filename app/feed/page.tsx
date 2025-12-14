@@ -1,232 +1,294 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
+// ✅ CHANGE THIS IMPORT PATH to wherever your supabase client is.
+// Common ones:
+// import { supabase } from "@/lib/supabaseClient";
+// import { supabase } from "@/utils/supabaseClient";
+// import { supabase } from "@/lib/supabase";
 import { supabase } from "../lib/supabaseClient";
 
-type FeedPost = {
+type ProfileLite = {
+  display_name: string | null;
+  username: string | null;
+} | null;
+
+type Post = {
   id: string;
   content: string;
-  image_url: string | null;
   created_at: string;
+  user_id: string;
+  profiles?: { display_name: string | null; username: string | null } | null;
 };
 
 export default function FeedPage() {
-  const [posts, setPosts] = useState<FeedPost[]>([]);
-  const [newContent, setNewContent] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
+  const router = useRouter();
+
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [newPost, setNewPost] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [loadingPosts, setLoadingPosts] = useState(false);
-  const [creatingPost, setCreatingPost] = useState(false);
 
-  // 🔍 Debug: let’s see that the component is mounting
-  console.log("✅ FeedPage mounted");
-
-  // Load posts from Supabase
-  async function loadPosts() {
-    try {
-      setError(null);
-      setLoadingPosts(true);
-
-      console.log("🔍 Calling supabase.from('posts').select");
-
-      const { data, error } = await supabase
-        .from("posts")
-        .select("id, content, image_url, created_at")
-        .order("created_at", { ascending: false });
-
-      console.log("📥 loadPosts result:", { data, error });
-
-      if (error) {
-        console.error("❌ Error loading posts:", error.message, error);
-        setError("Couldn't load the Glow feed.");
-        return;
-      }
-
-      const fixed: FeedPost[] = (data ?? []).map((d: any) => ({
-        id: d.id as string,
-        content: (d.content as string) ?? "",
-        image_url: (d.image_url as string | null) ?? null,
-        created_at: d.created_at as string,
-      }));
-
-      setPosts(fixed);
-    } catch (err) {
-      console.error("❌ Unexpected error in loadPosts:", err);
-      setError("Couldn't load the Glow feed.");
-    } finally {
-      setLoadingPosts(false);
-    }
-  }
+  const remaining = useMemo(() => 500 - newPost.length, [newPost]);
 
   useEffect(() => {
-    loadPosts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    let isMounted = true;
 
-  // Create a new post
-  async function handleCreatePost(e: React.FormEvent) {
+    const loadFeed = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // ✅ Auth session check
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
+
+        if (sessionError) console.error("Session error:", sessionError);
+
+        if (!session) {
+          router.push("/login");
+          return;
+        }
+
+        // ✅ Fetch posts + joined profile info
+        // NOTE: This requires a relationship (FK) posts.user_id -> profiles.id
+        const { data, error: postsError } = await supabase
+          .from("posts")
+          .select("id, content, created_at, user_id")
+          .order("created_at", { ascending: false });
+console.log("postsError:", postsError);
+console.log("postsData:", data);
+if (isMounted) setPosts(data ?? []);
+        if (postsError) throw new Error(postsError.message);
+
+        if (isMounted) {
+        
+        }
+      
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    loadFeed();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [router]);
+
+  const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!newContent.trim()) return;
+    const trimmed = newPost.trim();
+    if (!trimmed) return;
+
+    if (trimmed.length > 500) {
+      setError("Post is too long (max 500 characters).");
+      return;
+    }
 
     try {
+      setSubmitting(true);
       setError(null);
-      setCreatingPost(true);
-
-      console.log("🔍 Getting current user from supabase.auth");
 
       const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
 
-      console.log("👤 getUser result:", { user, userError });
+      if (sessionError) console.error("Session error:", sessionError);
 
-      if (userError || !user) {
-        console.error("❌ User error:", userError);
-        setError("You must be logged in to post.");
+      if (!session?.user?.id) {
+        router.push("/login");
         return;
       }
 
-      console.log("📝 Inserting into posts:", {
-        user_id: user.id,
-        content: newContent.trim(),
-        image_url: imageUrl.trim() || null,
+      // ✅ Insert post (RLS policy should check auth.uid() = user_id)
+      const { error: insertError } = await supabase.from("posts").insert({
+        content: trimmed,
+        user_id: session.user.id,
       });
 
-      const { data: insertData, error: insertError } = await supabase
+      if (insertError) throw insertError;
+
+      setNewPost("");
+
+      // ✅ Reload feed after posting (simple + reliable)
+      setLoading(true);
+      const { data, error: reloadError } = await supabase
         .from("posts")
-        .insert({
-          user_id: user.id,
-          content: newContent.trim(),
-          image_url: imageUrl.trim() || null,
-        })
-        .select(); // return inserted row(s) for debugging
+        .select(
+          `
+          id,
+          content,
+          created_at,
+          user_id,
+          profiles (
+            display_name,
+            username
+          )
+        `
+        )
+        .order("created_at", { ascending: false });
 
-      console.log("📤 insert result:", { insertData, insertError });
+      if (reloadError) throw reloadError;
 
-      if (insertError) {
-        console.error(
-          "❌ Error creating post:",
-          insertError.message,
-          insertError
-        );
-        setError("Couldn't create your Glow post.");
-        return;
-      }
+    
+    } catch (err: any) {
+  console.error("Load feed error:", err);
+  console.error("Load feed error JSON:", JSON.stringify(err, null, 2));
+  setError(err?.message ?? "Something went wrong loading your GlowSpace feed.");
+} finally {
+  setLoading(false);
+}
+  };
 
-      setNewContent("");
-      setImageUrl("");
-      await loadPosts();
-    } catch (err) {
-      console.error("❌ Unexpected error in handleCreatePost:", err);
-      setError("Couldn't create your Glow post.");
-    } finally {
-      setCreatingPost(false);
-    }
-  }
+ return (
+  <div className="relative z-10 mx-auto w-full max-w-3xl">
+<div className="pointer-events-none absolute inset-0 z-0">
+{/* ✨ Premium Space Layers */}
+<div className="pointer-events-none absolute inset-0 z-0">
+  {/* aurora ribbons */}
+  <div className="absolute -top-40 left-[-20%] h-[520px] w-[520px] rounded-full bg-fuchsia-400/20 blur-3xl" />
+  <div className="absolute top-10 right-[-25%] h-[620px] w-[620px] rounded-full bg-cyan-300/18 blur-3xl" />
+  <div className="absolute bottom-[-35%] left-1/2 h-[720px] w-[720px] -translate-x-1/2 rounded-full bg-violet-400/18 blur-3xl" />
 
-  return (
-    <main className="min-h-screen bg-slate-950 text-slate-50 flex justify-center px-4 py-10">
-      <div className="w-full max-w-2xl space-y-8">
-        {/* Header */}
-        <header className="space-y-1">
-          <h1 className="text-3xl font-bold text-pink-400">
-            GlowSpace Feed ✨
+  {/* tiny stars */}
+  <div className="absolute inset-0 opacity-70 [background-image:radial-gradient(1px_1px_at_12px_18px,rgba(255,255,255,.55),transparent_60%),radial-gradient(1px_1px_at_90px_70px,rgba(255,255,255,.35),transparent_60%),radial-gradient(1px_1px_at_160px_130px,rgba(255,255,255,.28),transparent_60%),radial-gradient(1px_1px_at_240px_40px,rgba(255,255,255,.45),transparent_60%),radial-gradient(1px_1px_at_280px_160px,rgba(255,255,255,.25),transparent_60%)] [background-size:320px_220px]" />
+
+  {/* a few “sparkle” stars (cross glint) */}
+  <div className="absolute left-[12%] top-[18%] h-[6px] w-[6px] rounded-full bg-white/80 shadow-[0_0_18px_rgba(255,255,255,.65)]" />
+  <div className="absolute left-[12%] top-[18%] h-[1px] w-[26px] bg-white/40 blur-[0.5px]" />
+  <div className="absolute left-[12%] top-[18%] h-[26px] w-[1px] bg-white/40 blur-[0.5px]" />
+
+  <div className="absolute right-[18%] top-[28%] h-[5px] w-[5px] rounded-full bg-white/70 shadow-[0_0_16px_rgba(255,255,255,.55)]" />
+  <div className="absolute right-[18%] top-[28%] h-[1px] w-[22px] bg-white/35 blur-[0.5px]" />
+  <div className="absolute right-[18%] top-[28%] h-[22px] w-[1px] bg-white/35 blur-[0.5px]" />
+
+  <div className="absolute left-[65%] bottom-[22%] h-[4px] w-[4px] rounded-full bg-white/60 shadow-[0_0_14px_rgba(255,255,255,.5)]" />
+  <div className="absolute left-[65%] bottom-[22%] h-[1px] w-[20px] bg-white/30 blur-[0.5px]" />
+  <div className="absolute left-[65%] bottom-[22%] h-[20px] w-[1px] bg-white/30 blur-[0.5px]" />
+
+  {/* subtle grain = premium */}
+  <div className="absolute inset-0 opacity-[0.08] [background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22120%22 height=%22120%22><filter id=%22n%22><feTurbulence type=%22fractalNoise%22 baseFrequency=%220.8%22 numOctaves=%223%22 stitchTiles=%22stitch%22/></filter><rect width=%22120%22 height=%22120%22 filter=%22url(%23n)%22 opacity=%220.35%22/></svg>')]" />
+</div>
+</div>
+      <div className="mx-auto w-full max-w-3xl">
+        <div className="mb-6">
+          <h1 className="text-4xl font-extrabold tracking-tight">
+            <span className="bg-gradient-to-r from-cyan-300 via-sky-300 to-fuchsia-200 bg-clip-text text-transparent">
+              GlowSpace
+            </span>{" "}
+            Feed
           </h1>
-          <p className="text-sm text-slate-300">
-            Post your glow, scroll the vibes, meet other legends.
+          <p className="mt-2 text-sm text-slate-400">
+         See what the GlowFam is saying in real time ✨
           </p>
-        </header>
+        </div>
 
-        {/* Create post */}
-        <section className="rounded-3xl border border-pink-500/40 bg-slate-900/70 p-5 shadow-lg shadow-pink-500/20">
-          <form onSubmit={handleCreatePost} className="space-y-3">
-            <label className="text-sm font-medium text-slate-100">
-              Create a post
-            </label>
-            <textarea
-              className="w-full rounded-2xl bg-slate-900 border border-slate-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500"
-              placeholder="What’s glowing in your world?"
-              rows={3}
-              value={newContent}
-              onChange={(e) => setNewContent(e.target.value)}
-            />
-
-            <input
-              className="w-full rounded-2xl bg-slate-900 border border-slate-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500"
-              placeholder="Optional: Image URL (https://...)"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-            />
-
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={creatingPost}
-                className="rounded-full bg-pink-500 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
-              >
-                {creatingPost ? "Posting..." : "Post to feed"}
-              </button>
-            </div>
-
-            <p className="text-xs text-slate-400">
-              Your glow shows up with your profile name & avatar.
+        <form
+          onSubmit={handleCreatePost}
+          className="
+  rounded-xl
+  border border-cyan-400/30
+  bg-gradient-to-br from-slate-900/60 to-slate-800/60
+  shadow-[0_0_30px_rgba(34,211,238,0.18)]
+  backdrop-blur-md
+"
+        >
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+              Drop a Glow ✨
             </p>
-          </form>
-        </section>
+            <p className={`text-xs ${remaining < 0 ? "text-red-400" : "text-slate-400"}`}>
+              {remaining} characters left
+            </p>
+          </div>
 
-        {/* Error box */}
+          <textarea
+            value={newPost}
+            onChange={(e) => setNewPost(e.target.value)}
+            placeholder="What's on your mind, baddie?"
+            className="w-full resize-none rounded-xl border border-slate-800/80 bg-slate-950/30 p-3 text-slate-100 outline-none focus:border-cyan-400/60"
+            rows={3}
+          />
+
+          <div className="mt-3 flex items-center justify-end">
+            <button
+              type="submit"
+              disabled={submitting || !newPost.trim() || newPost.trim().length > 500}
+              className="rounded-full bg-cyan-500/80 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {submitting ? "Posting..." : "Post to GlowSpace"}
+            </button>
+          </div>
+        </form>
+
         {error && (
-          <div className="rounded-2xl border border-red-500/60 bg-red-950/50 px-4 py-3 text-sm text-red-100">
+          <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
             {error}
           </div>
         )}
 
-        {/* Posts list */}
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-slate-200">
-            Latest glow drops
-          </h2>
+        {loading ? (
+          <div className="rounded-2xl border border-slate-800/80 bg-slate-950/20 p-6 text-slate-300">
 
-          {loadingPosts && (
-            <p className="text-xs text-slate-400">Loading the Glow feed…</p>
-          )}
-
-          {!loadingPosts && posts.length === 0 && !error && (
-            <p className="text-xs text-slate-400">
-              Nobody has posted yet. Be the first Glow legend ✨
-            </p>
-          )}
-
-          <div className="space-y-3">
-            {posts.map((post) => (
-              <article
-                key={post.id}
-                className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 text-sm space-y-2"
-              >
-                <p className="whitespace-pre-wrap text-slate-100">
-                  {post.content}
-                </p>
-                {post.image_url && (
-                  <img
-                    src={post.image_url}
-                    alt="Glow post"
-                    className="mt-2 max-h-64 w-full rounded-2xl object-cover"
-                  />
-                )}
-                <p className="text-[11px] text-slate-500">
-                  Dropped at{" "}
-                  {new Date(post.created_at).toLocaleString(undefined, {
-                    dateStyle: "short",
-                    timeStyle: "short",
-                  })}
-                </p>
-              </article>
-            ))}
+            Loading your GlowSpace feed...
           </div>
-        </section>
+        ) : (
+          <section className="space-y-4">
+            {posts.map((post) => {
+              const name =
+                post.profiles?.display_name ||
+                post.profiles?.username ||
+                "GlowSpace user";
+
+              return (
+                <article
+                  key={post.id}
+                  className="group rounded-2xl border border-slate-800/80 bg-gradient-to-br from-slate-900/60 to-slate-950/60 ring-1 ring-pink-400/40 shadow-[0_0_25px_rgba(236,72,153,0.45)]"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-cyan-400/60 to-fuchsia-300/40 text-xs font-bold text-slate-950">
+                        GS
+                      </div>
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-slate-400">
+                          {name}
+                        </p>
+                        <p className="text-[10px] text-slate-500">
+                          {new Date(post.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    <span className="text-xs text-slate-500 group-hover:text-cyan-300">
+                      public
+                    </span>
+                  </div>
+
+                  <p className="mt-3 whitespace-pre-wrap text-slate-100">
+                    {post.content}
+                  </p>
+                </article>
+              );
+            })}
+
+            {posts.length === 0 && (
+              <div className="rounded-2xl border border-slate-800/80 bg-slate-950/20 p-6 text-slate-300">
+                No posts yet. Be the first to drop a glow ✨
+              </div>
+            )}
+          </section>
+        )}
       </div>
-    </main>
+    </div>
   );
 }

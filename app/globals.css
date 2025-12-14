@@ -24,3 +24,205 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+/* GlowSpace space background */
+.glowspace-bg {
+  background: radial-gradient(
+    ellipse at top,
+    #1b2345 0%,
+    #0b1020 45%,
+    #000 100%
+  );
+}
+/* GlowSpace "space" background */
+body {
+  background: radial-gradient(ellipse at top, #1b2345 0%, #0b1020 45%, #000 100%);
+  background-attachment: fixed;
+}
+
+/* soft star dust */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(255,255,255,.10) 0 1px, transparent 2px),
+    radial-gradient(circle at 70% 20%, rgba(255,255,255,.08) 0 1px, transparent 2px),
+    radial-gradient(circle at 40% 80%, rgba(255,255,255,.06) 0 1px, transparent 2px),
+    radial-gradient(circle at 85% 70%, rgba(255,255,255,.05) 0 1px, transparent 2px),
+    radial-gradient(circle at 10% 60%, rgba(255,255,255,.07) 0 1px, transparent 2px);
+  opacity: 0.8;
+}
+@keyframes twinkle {
+  0%, 100% { opacity: .55; }
+  50% { opacity: .9; }
+}
+/* GlowSpace: space background + stars */
+.glowspace-space {
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+
+  /* base space gradient */
+  background: linear-gradient(to bottom, #1b0b2e 0%, #1a3d6f 45%, #090014 100%);
+}
+
+.glowspace-space::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.75;
+
+  /* stars (bigger dots, not tiny dust) */
+  background-image:
+    radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,0.95) 40%, transparent 60%),
+    radial-gradient(3px 3px at 80% 40%, rgba(255,255,255,0.90) 40%, transparent 60%),
+    radial-gradient(2px 2px at 60% 70%, rgba(255,255,255,0.85) 40%, transparent 60%),
+    radial-gradient(4px 4px at 30% 80%, rgba(255,255,255,0.80) 40%, transparent 60%),
+    radial-gradient(3px 3px at 50% 50%, rgba(255,255,255,0.90) 40%, transparent 60%),
+    radial-gradient(2px 2px at 70% 20%, rgba(255,255,255,0.88) 40%, transparent 60%);
+  background-size: 900px 900px;
+}
+
+.glowspace-space::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+
+  /* 2nd layer for depth */
+  background-image:
+    radial-gradient(2px 2px at 10% 20%, rgba(255,255,255,0.7) 40%, transparent 60%),
+    radial-gradient(3px 3px at 90% 60%, rgba(255,255,255,0.6) 40%, transparent 60%),
+    radial-gradient(2px 2px at 40% 90%, rgba(255,255,255,0.55) 40%, transparent 60%);
+  background-size: 1200px 1200px;
+}
+.glowspace-space {
+  position: relative;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top, #1b0b2e, #1a3d6f, #090014);
+  overflow: hidden;
+}
+
+/* STAR LAYER */
+.glowspace-space::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    url("data:image/svg+xml,%3Csvg width='120' height='120' viewBox='0 0 120 120' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='10' y='40' font-size='18'%3E⭐️%3C/text%3E%3Ctext x='60' y='80' font-size='14'%3E⭐️%3C/text%3E%3Ctext x='90' y='20' font-size='10'%3E⭐️%3C/text%3E%3C/svg%3E");
+  background-repeat: repeat;
+  opacity: 0.6;
+  animation: starTwinkle 8s ease-in-out infinite;
+}
+
+/* TWINKLE */
+@keyframes starTwinkle {
+  0% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+  100% { opacity: 0.4; }
+}
+/* GlowSpace: premium space vibe (safe CSS, no Tailwind bracket madness) */
+.glowspace-bg{
+  /* keep whatever you already have */
+
+  /* BIG nebula / round glow layers */
+  background-image:
+    radial-gradient(900px 600px at 65% 25%, rgba(0, 229, 255, 0.20), transparent 65%),
+    radial-gradient(800px 520px at 25% 70%, rgba(255, 60, 160, 0.14), transparent 65%),
+    radial-gradient(700px 500px at 80% 85%, rgba(140, 90, 255, 0.14), transparent 70%),
+    linear-gradient(135deg, #05060f 0%, #0a1230 45%, #120a2a 100%);
+}
+
+.glowspace-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+
+  /* tiny starfield */
+  background-image:
+    radial-gradient(1px 1px at 20px 30px, rgba(255,255,255,.55), transparent 60%),
+    radial-gradient(1px 1px at 140px 90px, rgba(255,255,255,.35), transparent 60%),
+    radial-gradient(1px 1px at 240px 160px, rgba(255,255,255,.25), transparent 60%),
+    radial-gradient(1px 1px at 320px 40px, rgba(255,255,255,.4), transparent 60%);
+  background-size: 360px 220px;
+  opacity: .65;
+
+  animation: starDrift 160s linear infinite;
+}
+
+.glowspace-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+
+  /* vignette so it’s less “flat” */
+  background: radial-gradient(circle at 50% 20%,
+    rgba(0,0,0,0) 0%,
+    rgba(0,0,0,.25) 55%,
+    rgba(0,0,0,.55) 100%
+  );
+}
+
+@keyframes starDrift {
+  from { transform: translate3d(0,0,0); }
+  to   { transform: translate3d(-220px,140px,0); }
+}
+/* GlowSpace – luxury cosmic grid vibe */
+.glowspace-bg {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, #05060f 0%, #0a1230 45%, #120a2a 100%);
+}
+
+/* subtle star dust */
+.glowspace-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+
+  background-image:
+    radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,.25), transparent),
+    radial-gradient(1px 1px at 70% 20%, rgba(255,255,255,.15), transparent),
+    radial-gradient(1px 1px at 40% 80%, rgba(255,255,255,.2), transparent),
+    radial-gradient(1px 1px at 85% 65%, rgba(255,255,255,.12), transparent);
+
+  background-size: 400px 400px;
+  opacity: 0.6;
+}
+
+/* geometric grid overlay */
+.glowspace-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+
+  background-image:
+    linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
+
+  background-size: 120px 120px;
+  mask-image: radial-gradient(circle at 50% 30%, black 40%, transparent 75%);
+}
+
+/* GlowSpace – adult space nebula background */
+.glowspace-bg {
+  position: relative;
+  min-height: 100vh;
+
+  background-image:
+    radial-gradient(900px 600px at 20% 15%, rgba(0, 220, 255, 0.28), transparent 60%),
+    radial-gradient(900px 600px at 85% 85%, rgba(160, 90, 255, 0.22), transparent 65%),
+    radial-gradient(700px 500px at 60% 55%, rgba(255, 90, 180, 0.14), transparent 70%),
+    linear-gradient(135deg, #04040c 0%, #0b1230 45%, #120a2a 100%);
+}
