@@ -3,10 +3,10 @@ import RainbowHeartPlayer from "../components/RainbowHeartPlayer";
 import { useEffect, useState, FormEvent } from "react";
 import { supabase } from "../lib/supabaseClient"; // keep this path the same as your signup page
 import { url } from "inspector";
+import NavBar from "../components/NavBar";
 
 export default function ProfilePage() {
   const [userId, setUserId] = useState<string | null>(null);
-
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
@@ -20,6 +20,8 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+
 
   // Load current user + profile from Supabase
   useEffect(() => {
