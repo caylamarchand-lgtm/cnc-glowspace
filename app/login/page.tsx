@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabaseClient";
-import NavBar from "../components/NavBar";
+
 
 export default function LoginPage() {
   const router = useRouter();
@@ -35,7 +35,7 @@ export default function LoginPage() {
 
   return (
     <>
-      <NavBar />
+     
 
       <main className="min-h-screen flex items-center justify-center bg-gradient-to-b from-black via-slate-950 to-black text-white p-6">
         <div className="w-full max-w-md rounded-3xl border border-pink-500/30 bg-black/70 p-8 shadow-[0_0_80px_rgba(236,72,153,0.35)] backdrop-blur">
