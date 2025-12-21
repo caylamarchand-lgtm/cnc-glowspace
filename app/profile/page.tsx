@@ -4,6 +4,7 @@ import { useEffect, useState, FormEvent } from "react";
 import { supabase } from "../lib/supabaseClient"; // keep this path the same as your signup page
 import { url } from "inspector";
 import NavBar from "../components/NavBar";
+import { getMyGlowcodes, GlowCode } from "../lib/glowcodes";
 
 export default function ProfilePage() {
   const [userId, setUserId] = useState<string | null>(null);
@@ -15,12 +16,29 @@ export default function ProfilePage() {
   const [status, setStatus] = useState("");
   const [backgroundUrl, setBackgroundUrl] = useState("");
   const [musicUrl, setMusicUrl] = useState("");
-  const [glowCrew, setGlowCrew] = useState<string[]>([]);
+  const [glowCrew, setGlowCrew] = useState<GlowCode[]>([]);
+  const [glowCrewNames, setGlowCrewNames] = useState<string[]>([]);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [glowcodes, setGlowcodes] = useState<GlowCode[]>([]);
+ const [glowcodesLoading, setGlowcodesLoading] = useState(true);
+ const [glowcodesError, setGlowcodesError] = useState<string | null>(null);
+useEffect(() => {
+    async function loadGlowcodes() {
+      try {
+        const data = await getMyGlowcodes();
+        setGlowCrew(data);
+      } catch (e: any) {
+        setError(e.message ?? "Failed to load glowcodes");
+      } finally {
+        setLoadingProfile(false);
+      }
+    }
 
+    loadGlowcodes();
+  }, []);
 
 
   // Load current user + profile from Supabase
@@ -110,17 +128,22 @@ export default function ProfilePage() {
 
   const previewStyle = backgroundUrl
     ? {
-        backgroundImages: `url(${backgroundUrl})`,
+        backgroundImage: `url(${backgroundUrl})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
       }
     : undefined;
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 px-4 py-10">
-      <div className="mx-auto max-w-6xl grid gap-10 md:grid-cols-2">
-        {/* LEFT: Live preview */}
-        <section>
+  <main className="min-h-screen bg-slate-950 text-slate-100 px-4 py-10">
+    <div className="text-xs text-slate-400 mb-2">
+      Glowcodes loaded: {glowCrew.length}
+    </div>
+
+    <div className="mx-auto max-w-6xl grid gap-10 md:grid-cols-2">
+      {/* LEFT: Live preview */}
+      <section>
+  
           <h1 className="text-2xl md:text-3xl font-extrabold text-pink-400 mb-2">
             Your Glow Profile ✨
           </h1>
@@ -191,15 +214,18 @@ export default function ProfilePage() {
             </div>
           </div>
           {/* Glow Crew strip */}
+{/* Glow Crew strip */}
 {glowCrew.length > 0 && (
   <div className="absolute bottom-2 left-2 right-2 flex gap-2 justify-center">
-    {glowCrew.map((name, i) => (
-      <div 
-        key={i}
-        className="px-2 py-1 text-xs rounded-md bg-pink-600/30 border border-pink-400/50 backdrop-blur-md shadow-lg"
+    {glowCrew.map((code) => (
+      <button
+        key={code.id}
+        type="button"
+        className="px-2 py-1 text-xs rounded-md bg-pink-600/30 border border-pink-500 text-pink-200 hover:bg-pink-600/50"
+        onClick={() => console.log("clicked glowcode:", code.id)}
       >
-        @{name}
-      </div>
+        @{code.title}
+      </button>
     ))}
   </div>
 )}
@@ -365,9 +391,9 @@ export default function ProfilePage() {
     type="text"
     className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
     placeholder="friend1, friend2, friend3, friend4"
-    value={glowCrew.join(", ")}
+    value={glowCrewNames.join(", ")}
     onChange={(e) =>
-      setGlowCrew(
+      setGlowCrewNames(
         e.target.value
           .split(",")
           .map((x) => x.trim())

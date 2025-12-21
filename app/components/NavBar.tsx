@@ -20,7 +20,9 @@ export default function NavBar() {
       <Link href="/explore" className="text-zinc-300 hover:text-white">
         Explore
       </Link>
-
+      <Link href="/login" className="text-zinc-300 hover:text-white">
+      Login
+    </Link>
       <Link href="/profile" className="ml-auto text-zinc-300 hover:text-white">
         Profile
       </Link>

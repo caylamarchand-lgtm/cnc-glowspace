@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabaseClient";
 
 export default function SignupPage() {
+  const [isAdult, setIsAdult] = useState(false);
   const router = useRouter();
-
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
@@ -19,6 +19,11 @@ export default function SignupPage() {
 
   const handleSignup = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!isAdult) {
+  setError("You must be 18 or older to create an account.");
+  setLoading(false);
+  return;
+}
     setLoading(true);
     setMessage(null);
     setError(null);
@@ -32,6 +37,7 @@ export default function SignupPage() {
           username,
           display_name: displayName,
           avatar_url: avatarUrl || null,
+          age_confirmed: true,
         },
       },
     });
@@ -90,10 +96,10 @@ export default function SignupPage() {
           <h1 className="text-3xl font-extrabold text-pink-300">
             Create your GlowSpace
           </h1>
+         
           <p className="text-xs text-slate-400">
-            Pick your username & glow name — old-school MySpace vibes, new-school
-            magic.
-          </p>
+  Pick your username & glow name — old-school MySpace vibes, new-school magic.
+</p> 
         </header>
 
         <form onSubmit={handleSignup} className="space-y-4">
@@ -146,6 +152,35 @@ export default function SignupPage() {
               className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500"
             />
           </div>
+<div className="mt-4">
+  <label className="flex items-start gap-2 text-sm text-slate-300">
+    <input
+      type="checkbox"
+      checked={isAdult}
+      onChange={(e) => setIsAdult(e.target.checked)}
+      required
+      className="mt-1"
+    />
+    <span>
+  I confirm that I am <strong>18 years of age or older</strong> and agree to the{" "}
+  <a
+    href="/terms"
+    target="_blank"
+    className="text-pink-300 underline hover:text-pink-400"
+  >
+    Terms of Service
+  </a>{" "}
+  and{" "}
+  <a
+    href="/privacy"
+    target="_blank"
+    className="text-pink-300 underline hover:text-pink-400"
+  >
+    Privacy Policy
+  </a>.
+</span>
+  </label>
+</div>
 
           <div>
             <label className="block text-xs text-slate-300 mb-1">Password</label>

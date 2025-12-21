@@ -108,14 +108,32 @@ if (isMounted) setPosts(data ?? []);
         router.push("/login");
         return;
       }
+// 🔍 Check for flagged terms (soft moderation)
+const { data: flaggedCheck, error: flaggedError } = await supabase
+  .rpc("contains_flagged_terms", { input: trimmed });
 
+if (flaggedError) {
+  console.error("Flag check failed:", flaggedError);
+}
       // ✅ Insert post (RLS policy should check auth.uid() = user_id)
       const { error: insertError } = await supabase.from("posts").insert({
         content: trimmed,
         user_id: session.user.id,
       });
 
-      if (insertError) throw insertError;
+      if (insertError) {
+  console.error("Create post failed:", insertError);
+
+  const msg =
+    insertError.code === "42501" ||
+    insertError.message?.toLowerCase().includes("row-level security")
+      ? "That post contains content that isn’t allowed."
+      : "Couldn’t post right now. Please try again.";
+
+  setError(msg);
+  setSubmitting(false);
+  return;
+}
 
       setNewPost("");
 
@@ -292,3 +310,4 @@ if (isMounted) setPosts(data ?? []);
     </div>
   );
 }
+
