@@ -2,26 +2,28 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-
+import { supabase } from "../lib/supabaseClient";
 // ✅ CHANGE THIS IMPORT PATH to wherever your supabase client is.
 // Common ones:
 // import { supabase } from "@/lib/supabaseClient";
 // import { supabase } from "@/utils/supabaseClient";
 // import { supabase } from "@/lib/supabase";
-import { supabase } from "../lib/supabaseClient";
+
 
 type ProfileLite = {
   display_name: string | null;
   username: string | null;
-} | null;
+  avatar_url: string | null
+};
 
 type Post = {
   id: string;
   content: string;
   created_at: string;
   user_id: string;
-  profiles?: { display_name: string | null; username: string | null } | null;
-};
+  profiles: ProfileLite | ProfileLite[]| null;//
+}
+
 
 export default function FeedPage() {
   const router = useRouter();
@@ -57,12 +59,24 @@ export default function FeedPage() {
 
         // ✅ Fetch posts + joined profile info
         // NOTE: This requires a relationship (FK) posts.user_id -> profiles.id
-        const { data, error: postsError } = await supabase
-          .from("posts")
-          .select("id, content, created_at, user_id")
-          .order("created_at", { ascending: false });
-console.log("postsError:", postsError);
-console.log("postsData:", data);
+       const { data, error: postsError } = await supabase
+  .from("posts")
+  .select(`
+    id,
+    content,
+    created_at,
+    user_id,
+    profiles:profiles!posts_user_id_fkey (
+      display_name,
+      username,
+      avatar_url
+    )
+  `)
+  .order("created_at", { ascending: false });
+          console.log("FIRST POST:", data?.[0]);
+        console.log("FIRST POST PROFILES:", data?.[0]?.profiles);
+        console.log("postsError:", postsError);
+        console.log("postsData:", data);
 if (isMounted) setPosts(data ?? []);
         if (postsError) throw new Error(postsError.message);
 
@@ -141,15 +155,15 @@ if (flaggedError) {
       setLoading(true);
       const { data, error: reloadError } = await supabase
         .from("posts")
-        .select(
-          `
+        .select(`
           id,
           content,
           created_at,
           user_id,
-          profiles (
+          profiles:profiles!posts_user_id_fkey (
             display_name,
             username
+            avatar_url
           )
         `
         )
@@ -262,10 +276,14 @@ if (flaggedError) {
         ) : (
           <section className="space-y-4">
             {posts.map((post) => {
-              const name =
-                post.profiles?.display_name ||
-                post.profiles?.username ||
-                "GlowSpace user";
+
+        const profile = Array.isArray(post.profiles) ?
+         post.profiles[0] : post.profiles;
+         const name =
+         profile?.display_name ||
+         profile?.username ||
+         "GlowSpace Users"
+
 
               return (
                 <article

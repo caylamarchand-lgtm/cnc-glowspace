@@ -5,9 +5,9 @@ import Link from "next/link";
 export default function NavBar() {
   return (
     <nav className="w-full bg-black border-b border-zinc-800 px-6 py-4 flex gap-6 text-sm">
-      <Link href="/" className="font-bold text-white hover:text-yellow-400">
-        GlowSpace
-      </Link>
+     <Link href="/glowspace" className="font-bold text-white hover:text-yellow-400">
+  GlowSpace
+</Link>
 
       <Link href="/feed" className="text-zinc-300 hover:text-white">
         Feed

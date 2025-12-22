@@ -1,67 +1,123 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { supabase } from "../lib/supabaseClient";
 
 type Post = {
   id: string;
-  title: string;
   content: string;
-  createdAt: string;
+  created_at: string;
+  user_id: string;
+ profiles?: {
+  display_name?: string | null;
+  username?: string | null;
+  avatar_url?: string | null;
+} | null;
 };
 
 type PostsContextValue = {
   posts: Post[];
-  addPost: (title: string, content: string) => void;
+  addPost: (title: string, content: string) => Promise<void>;
   clearPosts: () => void;
+  refreshPosts: () => Promise<void>;
 };
 
 const PostsContext = createContext<PostsContextValue | null>(null);
 
-const STORAGE_KEY = "glowspace_posts_v1";
+export function usePosts() {
+  const ctx = useContext(PostsContext);
+  if (!ctx) throw new Error("usePosts must be used within PostsProvider");
+  return ctx;
+}
 
 export function PostsProvider({ children }: { children: React.ReactNode }) {
   const [posts, setPosts] = useState<Post[]>([]);
 
-  // Load posts once
-  useEffect(() => {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) setPosts(JSON.parse(raw));
-  }, []);
+  const refreshPosts = async () => {
+    const { data, error } = await supabase
+      .from("posts")
+      .select(
+        `
+        id,
+        content,
+        created_at,
+        user_id,
+        profiles (
+          display_name,
+          username,
+          avatar_url
+        )
+      `
+      )
+      .order("created_at", { ascending: false });
 
-  // Save posts whenever they change
+    if (error) {
+      console.error("Error loading posts:", error.message);
+      return;
+    }
+
+    setPosts((data ?? []) as Post[]);
+  };
+
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
-  }, [posts]);
+    refreshPosts();
+  }, []);
 
   const value = useMemo(() => {
     return {
       posts,
-      addPost: (title: string, content: string) => {
-        setPosts((prev) => [
-          {
-            id: crypto.randomUUID(),
-            title: title.trim(),
-            content: content.trim(),
-            createdAt: new Date().toISOString(),
-          },
-          ...prev,
-        ]);
+
+      addPost: async (_title: string, content: string) => {
+        const trimmed = content.trim();
+        if (!trimmed) return;
+
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+
+        if (userError || !user) return;
+
+        const { data, error } = await supabase
+          .from("posts")
+          .insert({
+            user_id: user.id,
+            content: trimmed,
+          })
+          .select(
+            `
+            id,
+            content,
+            created_at,
+            user_id,
+            profiles (
+              display_name,
+              username,
+              avatar_url
+            )
+          `
+          )
+          .single();
+
+        if (error) {
+          console.error("Error creating post:", error.message);
+          return;
+        }
+
+        if (data) setPosts((prev) => [data as Post, ...prev]);
       },
+
       clearPosts: () => setPosts([]),
+
+      refreshPosts,
     };
   }, [posts]);
 
-  return (
-    <PostsContext.Provider value={value}>
-      {children}
-    </PostsContext.Provider>
-  );
-}
-
-export function usePosts() {
-  const ctx = useContext(PostsContext);
-  if (!ctx) {
-    throw new Error("usePosts must be used inside PostsProvider");
-  }
-  return ctx;
+  return <PostsContext.Provider value={value}>{children}</PostsContext.Provider>;
 }

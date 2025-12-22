@@ -1,231 +1,332 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabaseClient";
+// ✅ CHANGE THIS IMPORT PATH to wherever your supabase client is.
+// Common ones:
+// import { supabase } from "@/lib/supabaseClient";
+// import { supabase } from "@/utils/supabaseClient";
+// import { supabase } from "@/lib/supabase";
 
-export default function SignupPage() {
-  const [isAdult, setIsAdult] = useState(false);
+
+type ProfileLite = {
+  display_name: string | null;
+  username: string | null;
+  avatar_url: string | null
+};
+
+type Post = {
+  id: string;
+  content: string;
+  created_at: string;
+  user_id: string;
+  profiles: ProfileLite | ProfileLite[]| null;//
+}
+
+
+export default function FeedPage() {
   const router = useRouter();
-  const [username, setUsername] = useState("");
-  const [displayName, setDisplayName] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
 
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [newPost, setNewPost] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSignup = async (e: FormEvent<HTMLFormElement>) => {
+  const remaining = useMemo(() => 500 - newPost.length, [newPost]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadFeed = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // ✅ Auth session check
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
+
+        if (sessionError) console.error("Session error:", sessionError);
+
+        if (!session) {
+          router.push("/login");
+          return;
+        }
+
+        // ✅ Fetch posts + joined profile info
+        // NOTE: This requires a relationship (FK) posts.user_id -> profiles.id
+       const { data, error: postsError } = await supabase
+  .from("posts")
+  .select(`
+    id,
+    content,
+    created_at,
+    user_id,
+    profiles:profiles!posts_user_id_fkey (
+    username,
+      display_name,
+      username,
+      avatar_url
+    )
+  `)
+  .order("created_at", { ascending: false });
+          console.log("FIRST POST:", data?.[0]);
+        console.log("FIRST POST PROFILES:", data?.[0]?.profiles);
+        console.log("postsError:", postsError);
+        console.log("postsData:", data);
+if (isMounted) setPosts(data ?? []);
+        if (postsError) throw new Error(postsError.message);
+
+        if (isMounted) {
+        
+        }
+      
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    loadFeed();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [router]);
+
+  const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isAdult) {
-  setError("You must be 18 or older to create an account.");
-  setLoading(false);
-  return;
-}
-    setLoading(true);
-    setMessage(null);
-    setError(null);
 
-    // 1) Create the user in Supabase Auth
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          username,
-          display_name: displayName,
-          avatar_url: avatarUrl || null,
-          age_confirmed: true,
-        },
-      },
-    });
+    const trimmed = newPost.trim();
+    if (!trimmed) return;
 
-    if (error) {
-      setLoading(false);
-      setError(error.message);
+    if (trimmed.length > 500) {
+      setError("Post is too long (max 500 characters).");
       return;
     }
 
-    const user = data?.user;
+    try {
+      setSubmitting(true);
+      setError(null);
 
-    // 2) Insert a row into public.profiles for this user
-    if (user) {
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .insert([
-          {
-            id: user.id, // FK to auth.users.id
-            username,
-            display_name: displayName,
-            avatar_url: avatarUrl || null,
-          },
-        ]);
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
 
-      if (profileError) {
-        console.error(profileError);
-        setLoading(false);
-        setError(
-          "Your account was created, but we couldn’t save your profile yet. Try again after logging in."
-        );
+      if (sessionError) console.error("Session error:", sessionError);
+
+      if (!session?.user?.id) {
+        router.push("/login");
         return;
       }
-    }
+// 🔍 Check for flagged terms (soft moderation)
+const { data: flaggedCheck, error: flaggedError } = await supabase
+  .rpc("contains_flagged_terms", { input: trimmed });
 
-    // 3) Success – clear form and go to /profile
-    setLoading(false);
-    setMessage("Glow account created! Redirecting you to your profile ✨");
+if (flaggedError) {
+  console.error("Flag check failed:", flaggedError);
+}
+      // ✅ Insert post (RLS policy should check auth.uid() = user_id)
+      const { error: insertError } = await supabase.from("posts").insert({
+        content: trimmed,
+        user_id: session.user.id,
+      });
 
-    setUsername("");
-    setDisplayName("");
-    setAvatarUrl("");
-    setEmail("");
-    setPassword("");
+      if (insertError) {
+  console.error("Create post failed:", insertError);
 
-    router.push("/profile");
+  const msg =
+    insertError.code === "42501" ||
+    insertError.message?.toLowerCase().includes("row-level security")
+      ? "That post contains content that isn’t allowed."
+      : "Couldn’t post right now. Please try again.";
+
+  setError(msg);
+  setSubmitting(false);
+  return;
+}
+
+      setNewPost("");
+
+      // ✅ Reload feed after posting (simple + reliable)
+      setLoading(true);
+      const { data, error: reloadError } = await supabase
+        .from("posts")
+        .select(`
+          id,
+          content,
+          created_at,
+          user_id,
+          profiles:profiles!posts_user_id_fkey (
+            display_name,
+            username
+            avatar_url
+          )
+        `
+        )
+        .order("created_at", { ascending: false });
+
+      if (reloadError) throw reloadError;
+
+    
+    } catch (err: any) {
+  console.error("Load feed error:", err);
+  console.error("Load feed error JSON:", JSON.stringify(err, null, 2));
+  setError(err?.message ?? "Something went wrong loading your GlowSpace feed.");
+} finally {
+  setLoading(false);
+}
   };
 
-  return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-950 via-black to-slate-900 flex items-center justify-center text-slate-100 px-4">
-      <div className="w-full max-w-md rounded-2xl bg-black/60 border border-pink-500/40 shadow-[0_0_40px_rgba(236,72,153,0.5)] p-8 space-y-6">
-        <header className="text-center space-y-2">
-          <p className="text-xs uppercase tracking-[0.25em] text-pink-400">
-            Join the Glow Universe ✨
-          </p>
-          <h1 className="text-3xl font-extrabold text-pink-300">
-            Create your GlowSpace
-          </h1>
-         
-          <p className="text-xs text-slate-400">
-  Pick your username & glow name — old-school MySpace vibes, new-school magic.
-</p> 
-        </header>
+ return (
+  <div className="relative z-10 mx-auto w-full max-w-3xl">
+<div className="pointer-events-none absolute inset-0 z-0">
+{/* ✨ Premium Space Layers */}
+<div className="pointer-events-none absolute inset-0 z-0">
+  {/* aurora ribbons */}
+  <div className="absolute -top-40 left-[-20%] h-[520px] w-[520px] rounded-full bg-fuchsia-400/20 blur-3xl" />
+  <div className="absolute top-10 right-[-25%] h-[620px] w-[620px] rounded-full bg-cyan-300/18 blur-3xl" />
+  <div className="absolute bottom-[-35%] left-1/2 h-[720px] w-[720px] -translate-x-1/2 rounded-full bg-violet-400/18 blur-3xl" />
 
-        <form onSubmit={handleSignup} className="space-y-4">
-          <div>
-            <label className="block text-xs text-slate-300 mb-1">Username</label>
-            <input
-              type="text"
-              required
-              placeholder="glow_babe"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500"
-            />
-          </div>
+  {/* tiny stars */}
+  <div className="absolute inset-0 opacity-70 [background-image:radial-gradient(1px_1px_at_12px_18px,rgba(255,255,255,.55),transparent_60%),radial-gradient(1px_1px_at_90px_70px,rgba(255,255,255,.35),transparent_60%),radial-gradient(1px_1px_at_160px_130px,rgba(255,255,255,.28),transparent_60%),radial-gradient(1px_1px_at_240px_40px,rgba(255,255,255,.45),transparent_60%),radial-gradient(1px_1px_at_280px_160px,rgba(255,255,255,.25),transparent_60%)] [background-size:320px_220px]" />
 
-          <div>
-            <label className="block text-xs text-slate-300 mb-1">
-              Display name
-            </label>
-            <input
-              type="text"
-              placeholder="CNC Glow Queen"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500"
-            />
-          </div>
+  {/* a few “sparkle” stars (cross glint) */}
+  <div className="absolute left-[12%] top-[18%] h-[6px] w-[6px] rounded-full bg-white/80 shadow-[0_0_18px_rgba(255,255,255,.65)]" />
+  <div className="absolute left-[12%] top-[18%] h-[1px] w-[26px] bg-white/40 blur-[0.5px]" />
+  <div className="absolute left-[12%] top-[18%] h-[26px] w-[1px] bg-white/40 blur-[0.5px]" />
 
-          <div>
-            <label className="block text-xs text-slate-300 mb-1">
-              Profile picture URL (optional)
-            </label>
-            <input
-              type="url"
-              placeholder="https://your-image-link.com/avatar.png"
-              value={avatarUrl}
-              onChange={(e) => setAvatarUrl(e.target.value)}
-              className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500"
-            />
-          </div>
+  <div className="absolute right-[18%] top-[28%] h-[5px] w-[5px] rounded-full bg-white/70 shadow-[0_0_16px_rgba(255,255,255,.55)]" />
+  <div className="absolute right-[18%] top-[28%] h-[1px] w-[22px] bg-white/35 blur-[0.5px]" />
+  <div className="absolute right-[18%] top-[28%] h-[22px] w-[1px] bg-white/35 blur-[0.5px]" />
 
-          <div>
-            <label className="block text-xs text-slate-300 mb-1">Email</label>
-            <input
-              type="email"
-              required
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500"
-            />
-          </div>
-<div className="mt-4">
-  <label className="flex items-start gap-2 text-sm text-slate-300">
-    <input
-      type="checkbox"
-      checked={isAdult}
-      onChange={(e) => setIsAdult(e.target.checked)}
-      required
-      className="mt-1"
-    />
-    <span>
-  I confirm that I am <strong>18 years of age or older</strong> and agree to the{" "}
-  <a
-    href="/terms"
-    target="_blank"
-    className="text-pink-300 underline hover:text-pink-400"
-  >
-    Terms of Service
-  </a>{" "}
-  and{" "}
-  <a
-    href="/privacy"
-    target="_blank"
-    className="text-pink-300 underline hover:text-pink-400"
-  >
-    Privacy Policy
-  </a>.
-</span>
-  </label>
+  <div className="absolute left-[65%] bottom-[22%] h-[4px] w-[4px] rounded-full bg-white/60 shadow-[0_0_14px_rgba(255,255,255,.5)]" />
+  <div className="absolute left-[65%] bottom-[22%] h-[1px] w-[20px] bg-white/30 blur-[0.5px]" />
+  <div className="absolute left-[65%] bottom-[22%] h-[20px] w-[1px] bg-white/30 blur-[0.5px]" />
+
+  {/* subtle grain = premium */}
+  <div className="absolute inset-0 opacity-[0.08] [background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22120%22 height=%22120%22><filter id=%22n%22><feTurbulence type=%22fractalNoise%22 baseFrequency=%220.8%22 numOctaves=%223%22 stitchTiles=%22stitch%22/></filter><rect width=%22120%22 height=%22120%22 filter=%22url(%23n)%22 opacity=%220.35%22/></svg>')]" />
 </div>
+</div>
+      <div className="mx-auto w-full max-w-3xl">
+        <div className="mb-6">
+          <h1 className="text-4xl font-extrabold tracking-tight">
+            <span className="bg-gradient-to-r from-cyan-300 via-sky-300 to-fuchsia-200 bg-clip-text text-transparent">
+              GlowSpace
+            </span>{" "}
+            Feed
+          </h1>
+          <p className="mt-2 text-sm text-slate-400">
+         See what the GlowFam is saying in real time ✨
+          </p>
+        </div>
 
-          <div>
-            <label className="block text-xs text-slate-300 mb-1">Password</label>
-            <input
-              type="password"
-              required
-              minLength={6}
-              placeholder="******"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500"
-            />
+        <form
+          onSubmit={handleCreatePost}
+          className="
+  rounded-xl
+  border border-cyan-400/30
+  bg-gradient-to-br from-slate-900/60 to-slate-800/60
+  shadow-[0_0_30px_rgba(34,211,238,0.18)]
+  backdrop-blur-md
+"
+        >
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+              Drop a Glow ✨
+            </p>
+            <p className={`text-xs ${remaining < 0 ? "text-red-400" : "text-slate-400"}`}>
+              {remaining} characters left
+            </p>
           </div>
 
-          {error && (
-            <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/40 rounded-md px-3 py-2">
-              {error}
-            </p>
-          )}
+          <textarea
+            value={newPost}
+            onChange={(e) => setNewPost(e.target.value)}
+            placeholder="What's on your mind, baddie?"
+            className="w-full resize-none rounded-xl border border-slate-800/80 bg-slate-950/30 p-3 text-slate-100 outline-none focus:border-cyan-400/60"
+            rows={3}
+          />
 
-          {message && (
-            <p className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/40 rounded-md px-3 py-2">
-              {message}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="mt-2 w-full rounded-xl bg-gradient-to-r from-pink-500 to-purple-500 py-2.5 text-sm font-semibold tracking-wide shadow-lg shadow-pink-500/40 disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {loading ? "Creating your glow..." : "Sign up"}
-          </button>
+          <div className="mt-3 flex items-center justify-end">
+            <button
+              type="submit"
+              disabled={submitting || !newPost.trim() || newPost.trim().length > 500}
+              className="rounded-full bg-cyan-500/80 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {submitting ? "Posting..." : "Post to GlowSpace"}
+            </button>
+          </div>
         </form>
 
-        <p className="mt-4 text-center text-[11px] text-slate-400">
-          Already glowing?{" "}
-          <a
-            href="/login"
-            className="text-pink-400 hover:text-pink-300 underline underline-offset-2"
-          >
-            Log in instead
-          </a>
-        </p>
+        {error && (
+          <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
+            {error}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="rounded-2xl border border-slate-800/80 bg-slate-950/20 p-6 text-slate-300">
+
+            Loading your GlowSpace feed...
+          </div>
+        ) : (
+          <section className="space-y-4">
+            {posts.map((post) => {
+
+        const profile = Array.isArray(post.profiles) ?
+         post.profiles[0] : post.profiles;
+         const name =
+         profile?.display_name ||
+         profile?.username ||
+         "GlowSpace Users"
+
+
+              return (
+                <article
+                  key={post.id}
+                  className="group rounded-2xl border border-slate-800/80 bg-gradient-to-br from-slate-900/60 to-slate-950/60 ring-1 ring-pink-400/40 shadow-[0_0_25px_rgba(236,72,153,0.45)]"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-cyan-400/60 to-fuchsia-300/40 text-xs font-bold text-slate-950">
+                        GS
+                      </div>
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-slate-400">
+                          {name}
+                        </p>
+                        <p className="text-[10px] text-slate-500">
+                          {new Date(post.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    <span className="text-xs text-slate-500 group-hover:text-cyan-300">
+                      public
+                    </span>
+                  </div>
+
+                  <p className="mt-3 whitespace-pre-wrap text-slate-100">
+                    {post.content}
+                  </p>
+                </article>
+              );
+            })}
+
+            {posts.length === 0 && (
+              <div className="rounded-2xl border border-slate-800/80 bg-slate-950/20 p-6 text-slate-300">
+                No posts yet. Be the first to drop a glow ✨
+              </div>
+            )}
+          </section>
+        )}
       </div>
-    </main>
+    </div>
   );
 }
+
