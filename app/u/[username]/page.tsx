@@ -6,7 +6,8 @@ type Profile = {
   username: string;
   display_name: string | null;
   avatar_url: string | null;
-  bio: string | null;
+bio: string | null;
+about_me: string | null;
 };
 
 type PageProps = {
@@ -31,8 +32,11 @@ export default async function ProfilePage({ params }: PageProps) {
   if (!clean) return notFound();
 
   const { data: profile, error: profileError } = await supabase
+
+
+  
     .from("profiles")
-    .select("id, username, display_name, avatar_url, bio")
+    .select("id, username, display_name, avatar_url, bio, about_me")
     .ilike("username", clean)
     .maybeSingle<Profile>();
 
@@ -78,7 +82,7 @@ if (!profile) {
 
         <div>
           <h1 style={{ fontSize: 28, margin: 0 }}>
-          {profile.display_name || profile.username}
+          {profile.display_name || profile.username || "GlowSpace user"}
           </h1>
           <p style={{ margin: "6px 0 0 0", opacity: 0.8 }}>
             @{profile.username}
@@ -86,13 +90,13 @@ if (!profile) {
         </div>
       </header>
 
-      {profile.bio ? (
-        <section style={{ marginTop: 16 }}>
-         <p style={{ lineHeight: 1.6, margin: 0, whiteSpace: "pre-wrap" }}>
-  {profile.bio}
-</p>
-        </section>
-      ) : null}
+      {(profile.about_me ?? profile.bio) ? (
+  <section style={{ marginTop: 16 }}>
+    <p style={{ lineHeight: 1.6, margin: 0, whiteSpace: "pre-wrap" }}>
+      {profile.about_me ?? profile.bio}
+    </p>
+  </section>
+) : null}
 
       <section style={{ marginTop: 28, paddingTop: 16, borderTop: "1px solid #333" }}>
         <h2 style={{ margin: "0 0 8px 0", fontSize: 18 }}>Posts</h2>
