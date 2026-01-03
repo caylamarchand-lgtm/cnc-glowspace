@@ -9,18 +9,32 @@ type RainbowHeartPlayerProps = {
 function extractYouTubeId(rawUrl: string): string | null {
   if (!rawUrl) return null;
 
-  try {
-    const url = new URL(rawUrl.trim());
+  const input = rawUrl.trim();
 
-    // youtu.be/VIDEOID
+  try {
+    // Allow raw video ID
+    if (/^[a-zA-Z0-9_-]{11}$/.test(input)) return input;
+
+    const url = new URL(input);
+
+    // youtu.be/VIDEOID?si=...
     if (url.hostname.includes("youtu.be")) {
-      return url.pathname.replace("/", "");
+      const id = url.pathname.split("/").filter(Boolean)[0];
+      return id && id.length >= 11 ? id.slice(0, 11) : null;
     }
 
     // youtube.com/watch?v=VIDEOID
-    if (url.hostname.includes("youtube.com")) {
-      return url.searchParams.get("v");
+    if (url.searchParams.get("v")) {
+      return url.searchParams.get("v")!.slice(0, 11);
     }
+
+    // youtube.com/shorts/VIDEOID
+    const shortsMatch = url.pathname.match(/\/shorts\/([a-zA-Z0-9_-]{11})/);
+    if (shortsMatch) return shortsMatch[1];
+
+    // youtube.com/embed/VIDEOID
+    const embedMatch = url.pathname.match(/\/embed\/([a-zA-Z0-9_-]{11})/);
+    if (embedMatch) return embedMatch[1];
 
     return null;
   } catch {
@@ -58,13 +72,14 @@ const RainbowHeartPlayer: React.FC<RainbowHeartPlayerProps> = ({ src }) => {
         }`}
       >
         <div className="h-32 w-full bg-slate-900">
-          <iframe
-            className="h-full w-full rounded-2xl"
-            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&loop=1&playlist=${videoId}`}
-            title="GlowSpace music"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-          />
+        <iframe
+  key={videoId}   // <<< ADD THIS LINE
+  className="h-full w-full rounded-2xl"
+  src={`https://www.youtube.com/embed/${videoId}?autoplay=1&loop=1&playlist=${videoId}`}
+  title="Glowspace music"
+  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+  allowFullScreen
+/>
         </div>
         <p className="mt-1 px-4 pb-3 text-right text-[10px] uppercase tracking-[0.2em] text-slate-300/80">
           Glow track · Retro Glow Mode
