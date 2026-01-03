@@ -124,6 +124,8 @@ const uid = authedUser.id;
     setError(null);
     setMessage(null);
 
+    console.log("AVATAR ABOUT TO SAVE:", avatarUrl);
+
     const { data: saved, error: saveError } = await supabase
   .from("profiles")
   .upsert({
@@ -138,11 +140,14 @@ const uid = authedUser.id;
       music_url: musicUrl,
     glow_crew: glowCrew,
 })
-.select("id, music_url")
+.select("id, music_url, avatar_url")
 .single();
 console.log("SAVED PROFILE:", saved);
 if (saved?.music_url) {
   setMusicUrl(saved.music_url);
+  if (saved?.avatar_url) {
+    setAvatarUrl(saved.avatar_url);
+  }
 }
     if (saveError) {
       setError(saveError.message);
@@ -300,14 +305,21 @@ if (saved?.music_url) {
             type="file"
             accept="image/*"
             className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              if (!file) return
-              const reader = new FileReader()
-              reader.onload = () =>
-                setProfileImage(reader.result as string)
-              reader.readAsDataURL(file)
-            }}
+           onChange={(e) => {
+  const file = e.target.files?.[0]
+  if (!file) return
+
+  const reader = new FileReader()
+  reader.onload = () => {
+    const base64 = reader.result as string
+
+    // show immediately
+    setProfileImage(base64)
+    setAvatarUrl(base64)
+  }
+
+  reader.readAsDataURL(file)
+}}
           />
         </label>
 
