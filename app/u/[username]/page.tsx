@@ -6,8 +6,14 @@ type Profile = {
   username: string;
   display_name: string | null;
   avatar_url: string | null;
-bio: string | null;
-about_me: string | null;
+  bio: string | null;
+  about_me: string | null;
+
+  // new (optional extras)
+  music_url: string | null;
+  background_url: string | null;
+  theme: string | null;
+  status: string | null;
 };
 
 type PageProps = {
@@ -36,7 +42,7 @@ export default async function ProfilePage({ params }: PageProps) {
 
   
     .from("profiles")
-    .select("id, username, display_name, avatar_url, bio, about_me")
+    .select("id, username, display_name, avatar_url, bio, about_me, music_url, background_url, theme, status")
     .ilike("username", clean)
     .maybeSingle<Profile>();
 
@@ -50,9 +56,20 @@ if (!profile) {
   console.log("NO PROFILE FOUND FOR:", clean);
   return notFound();
 }
+const pageStyle: React.CSSProperties = {
+  maxWidth: 900,
+  margin: "0 auto",
+  padding: 24,
+  minHeight: "100vh",
+  backgroundSize: "cover",
+  backgroundPosition: "center",
+};
 
+if (profile.background_url) {
+  pageStyle.backgroundImage = `url(${profile.background_url})`
+}
   return (
-    <main style={{ maxWidth: 900, margin: "0 auto", padding: 24 }}>
+    <main style={pageStyle}>
       <header style={{ display: "flex", gap: 16, alignItems: "center" }}>
         <div
           style={{
