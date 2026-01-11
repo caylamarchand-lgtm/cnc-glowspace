@@ -369,32 +369,7 @@ if (saved?.music_url) {
         />
       </label>
 
-      {/* Thumbnails */}
-      {galleryImages.map((img, i) => (
-        <div
-          key={i}
-          className="relative rounded-lg overflow-hidden border border-white/10 bg-slate-950 aspect-square"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={img}
-            alt={`Photo ${i}`}
-            className="h-full w-full object-cover"
-          />
-
-          <button
-            type="button"
-            className="absolute top-1 right-1 bg-black/60 hover:bg-black/80 text-white rounded-full w-7 h-7 flex items-center justify-center"
-            onClick={() =>
-              setGalleryImages((prev) =>
-                prev.filter((_, idx) => idx !== i)
-              )
-            }
-          >
-            ✕
-          </button>
-        </div>
-      ))}
+       
     </div>
   </div>
 </div>

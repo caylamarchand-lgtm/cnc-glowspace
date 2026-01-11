@@ -79,3 +79,34 @@ export async function deleteGlowcode(id: string) {
 
   if (error) throw error;
 }
+// ===============================
+// Profile Vibes (UI only)
+// ===============================
+
+export const PROFILE_VIBES = {
+  soft: {
+    ring: "ring-pink-300",
+    glow: "shadow-pink-400/40",
+    text: "text-pink-300",
+  },
+  witchy: {
+    ring: "ring-purple-500",
+    glow: "shadow-purple-600/50",
+    text: "text-purple-400",
+  },
+  chaotic: {
+    ring: "ring-red-500",
+    glow: "shadow-red-600/60",
+    text: "text-red-400",
+  },
+  cosmic: {
+    ring: "ring-cyan-400",
+    glow: "shadow-cyan-500/50",
+    text: "text-cyan-300",
+  },
+  dark: {
+    ring: "ring-neutral-600",
+    glow: "shadow-black/60",
+    text: "text-neutral-300",
+  },
+} as const;
