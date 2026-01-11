@@ -36,7 +36,9 @@ export default function NavBar() {
     <Link href="/feed" className="text-zinc-300 hover:text-white">
       Feed
     </Link>
-
+<Link href="/makers" className="text-zinc-300 hover:text-white">
+  Makers
+</Link>
     {isAuthed && (
       <>
         <Link href="/create" className="text-zinc-300 hover:text-white">

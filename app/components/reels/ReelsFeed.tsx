@@ -96,36 +96,26 @@ function ReelCard({
   isActive: boolean;
   onActive: () => void;
 }) {
-  const [url, setUrl] = useState("");
+  const [url, setUrl] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const username = useMemo(() => getUsername(reel.profiles), [reel.profiles]);
   const timeText = useMemo(() => formatTime(reel.created_at), [reel.created_at]);
 
   // ✅ Get signed URL for private bucket videos
-  useEffect(() => {
-    let alive = true;
+ 
+useEffect(() => {
+  if (!reel.video_path) {
+    setUrl(null);
+    return;
+  }
 
-    (async () => {
-      const { data, error } = await supabase.storage
-        .from("reels") // your bucket name
-        .createSignedUrl(reel.video_path, 60 * 60);
+  const { data } = supabase.storage
+    .from("reels")
+    .getPublicUrl(reel.video_path);
 
-      if (!alive) return;
-
-      if (error) {
-        console.error("Signed URL error:", error.message);
-        setUrl("");
-        return;
-      }
-
-      setUrl(data?.signedUrl ?? "");
-    })();
-
-    return () => {
-      alive = false;
-    };
-  }, [reel.video_path]);
+  setUrl(data.publicUrl);
+}, [reel.video_path]);
 
   // ✅ Optional: autoplay ONLY when active
   useEffect(() => {
