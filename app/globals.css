@@ -5,12 +5,7 @@
   --foreground: #171717;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+
 
 @media (prefers-color-scheme: dark) {
   :root {
@@ -226,3 +221,122 @@ body::before {
     radial-gradient(700px 500px at 60% 55%, rgba(255, 90, 180, 0.14), transparent 70%),
     linear-gradient(135deg, #04040c 0%, #0b1230 45%, #120a2a 100%);
 }
+@keyframes rain {
+  to {
+    transform: translateY(120vh);
+  }
+}
+
+.animate-rain {
+  animation-name: rain;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+@keyframes bubbleFloat {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(-120vh) translateX(20px);
+    opacity: 0;
+  }
+}
+/* ===== Neon Grid background ===== */
+.neonGridGlow {
+  background:
+    radial-gradient(600px 380px at 20% 20%, rgba(0, 220, 255, 0.22), transparent 60%),
+    radial-gradient(700px 420px at 80% 70%, rgba(255, 0, 200, 0.18), transparent 60%),
+    linear-gradient(180deg, rgba(10, 6, 20, 0.65), rgba(10, 6, 20, 0.85));
+}
+
+.neonGridLines {
+  opacity: 0.55;
+  background-image:
+    linear-gradient(to right, rgba(0, 220, 255, 0.22) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 0, 200, 0.18) 1px, transparent 1px);
+  background-size: 48px 48px;
+  filter: drop-shadow(0 0 6px rgba(0, 220, 255, 0.25))
+          drop-shadow(0 0 10px rgba(255, 0, 200, 0.18));
+}
+
+@keyframes neonScan {
+  0% { transform: translateY(-30%); opacity: 0; }
+  15% { opacity: 0.22; }
+  50% { opacity: 0.10; }
+  85% { opacity: 0.22; }
+  100% { transform: translateY(30%); opacity: 0; }
+}
+
+.neonGridScan {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.10),
+    transparent
+  );
+  mix-blend-mode: screen;
+  animation: neonScan 6.5s ease-in-out infinite;
+}
+@keyframes snow {
+  to {
+    transform: translateY(120vh);
+  }
+}
+
+.animate-snow {
+  animation-name: snow;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+/* =========================
+   🔥 Ember / Fire effect
+========================= */
+@keyframes emberFloat {
+  0% { transform: translateY(0) translateX(0) scale(1); opacity: 0; }
+  10% { opacity: 0.9; }
+  100% { transform: translateY(-120vh) translateX(20px) scale(0.6); opacity: 0; }
+}
+
+.ember {
+  background: radial-gradient(circle, rgba(255, 210, 120, 1) 0%, rgba(255, 120, 40, 0.9) 40%, rgba(255, 80, 0, 0) 70%);
+  filter: blur(0.2px);
+  animation-name: emberFloat;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.ember-glow {
+  background:
+    radial-gradient(700px 400px at 20% 90%, rgba(255, 120, 40, 0.35), transparent 70%),
+    radial-gradient(700px 400px at 80% 95%, rgba(255, 60, 0, 0.22), transparent 70%),
+    radial-gradient(900px 500px at 50% 105%, rgba(255, 180, 80, 0.14), transparent 70%);
+}
+
+/* =========================
+   🌫️ Smoke / Fog effect
+========================= */
+@keyframes fogMove {
+  0% { transform: translateX(-10%) translateY(0); }
+  100% { transform: translateX(10%) translateY(-2%); }
+}
+
+@keyframes fogPulse {
+  0%, 100% { opacity: 0.22; }
+  50% { opacity: 0.35; }
+}
+
+.fog {
+  background:
+    radial-gradient(900px 400px at 20% 40%, rgba(255, 255, 255, 0.22), transparent 70%),
+    radial-gradient(900px 450px at 70% 60%, rgba(200, 220, 255, 0.16), transparent 75%),
+    radial-gradient(1100px 500px at 50% 80%, rgba(255, 255, 255, 0.12), transparent 75%);
+  filter: blur(18px);
+}
+
+.fog-1 { animation: fogMove 14s ease-in-out infinite, fogPulse 8s ease-in-out infinite; }
+.fog-2 { animation: fogMove 22s ease-in-out infinite reverse, fogPulse 12s ease-in-out infinite; }
+.fog-3 { animation: fogMove 30s ease-in-out infinite, fogPulse 16s ease-in-out infinite; }

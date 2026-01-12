@@ -39,24 +39,29 @@ export default function NavBar() {
 <Link href="/makers" className="text-zinc-300 hover:text-white">
   Makers
 </Link>
-    {isAuthed && (
-      <>
-        <Link href="/create" className="text-zinc-300 hover:text-white">
-          Create
-        </Link>
+   {isAuthed && (
+  <>
+    <Link href="/create" className="text-zinc-300 hover:text-white">
+      Create
+    </Link>
 
-        <Link href="/reels" className="text-zinc-300 hover:text-white">
-          Reels
-        </Link>
+    <Link href="/reels" className="text-zinc-300 hover:text-white">
+      Reels
+    </Link>
 
-        <button
-          onClick={() => supabase.auth.signOut()}
-          className="ml-auto text-red-500 hover:text-red-400"
-        >
-          Logout
-        </button>
-      </>
-    )}
+    <Link href="/profile" className="text-zinc-300 hover:text-white">
+      Profile
+    </Link>
+
+    <button
+      onClick={() => supabase.auth.signOut()}
+      className="ml-auto text-red-500 hover:text-red-400"
+    >
+      Logout
+    </button>
+  </>
+)}
+
 
     {!isAuthed && (
       <Link href="/signin" className="ml-auto text-zinc-300 hover:text-white">

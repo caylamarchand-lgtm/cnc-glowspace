@@ -155,19 +155,16 @@ useEffect(() => {
 
       {/* Video */}
       <div className="mt-3">
-        {url ? (
-          <video
-            ref={videoRef}
-            src={url}
-            controls
-            playsInline
-            className="w-full max-h-[520px] rounded-lg bg-black"
-          />
-        ) : (
-          <div className="text-zinc-500">
-            Couldn’t load video URL (check bucket privacy/path).
-          </div>
-        )}
+       <div className="relative w-full overflow-hidden rounded-xl bg-black">
+  <video
+    ref={videoRef}
+    src={url ?? undefined}
+    className="aspect-[9/16] w-full object-cover"
+    playsInline
+    controls
+    preload="metadata"
+  />
+</div>
       </div>
     </div>
   );
