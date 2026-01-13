@@ -56,7 +56,13 @@ export default function SignupPage() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          style={{ padding: 12, borderRadius: 10, border: "1px solid #333" }}
+          style={{
+  padding: 12,
+  borderRadius: 10,
+  border: "1px solid #333",
+  backgroundColor: "#0b0f1a",
+  color: "#ffffff",
+}}
         />
 
         <input
@@ -66,7 +72,13 @@ export default function SignupPage() {
           onChange={(e) => setPassword(e.target.value)}
           required
           minLength={6}
-          style={{ padding: 12, borderRadius: 10, border: "1px solid #333" }}
+          style={{
+  padding: 12,
+  borderRadius: 10,
+  border: "1px solid #333",
+  backgroundColor: "#0b0f1a",
+  color: "#ffffff",
+}}
         />
 
         <button
