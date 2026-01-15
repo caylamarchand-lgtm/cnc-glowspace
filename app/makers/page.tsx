@@ -14,7 +14,7 @@ type Author = {
 type MakersPost = {
   id: string;
   created_at: string;
-  post_type: PostType;
+  post_type: "sharing" | "sale" | "commissions";
   title: string | null;
   description: string | null;
   price: string | null;
@@ -87,8 +87,34 @@ export default function MakersPage() {
       return;
     }
 
-    setPosts((data ?? []) as MakersPost[]);
-    setLoadingPosts(false);
+    const normalized: MakersPost[] = (data ?? []).map((p: any) => ({
+  id: p.id,
+  created_at: p.created_at,
+  post_type: p.post_type,
+  title: p.title ?? null,
+  description: p.description ?? null,
+  price: p.price ?? null,
+  contact: p.contact ?? null,
+  author_id: p.author_id,
+  author: Array.isArray(p.author)
+    ? p.author[0]
+      ? {
+          id: p.author[0].id,
+          username: p.author[0].username ?? null,
+          display_name: p.author[0].display_name ?? null,
+        }
+      : null
+    : p.author
+    ? {
+        id: p.author.id,
+        username: p.author.username ?? null,
+        display_name: p.author.display_name ?? null,
+      }
+    : null,
+}));
+
+setPosts(normalized);
+setLoadingPosts(false);
   }
 
   async function handleCreatePost() {
