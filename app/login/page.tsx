@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabaseClient";
-
+import Link from "next/link"
 
 export default function LoginPage() {
   const router = useRouter();
@@ -35,9 +35,7 @@ export default function LoginPage() {
 
   return (
     <>
-     
-
-      <main className="min-h-screen flex items-center justify-center bg-gradient-to-b from-black via-slate-950 to-black text-white p-6">
+    <main className="min-h-screen flex items-center justify-center bg-gradient-to-b from-black via-slate-950 to-black text-white p-6">
         <div className="w-full max-w-md rounded-3xl border border-pink-500/30 bg-black/70 p-8 shadow-[0_0_80px_rgba(236,72,153,0.35)] backdrop-blur">
           <h1 className="mb-1 text-center text-3xl font-extrabold text-pink-400 drop-shadow">
             Welcome back to
@@ -61,6 +59,15 @@ export default function LoginPage() {
                 required
               />
             </div>
+
+<div className="text-right">
+  <Link
+    href="/forgot-password"
+    className="text-sm text-pink-400 hover:text-pink-300 underline"
+  >
+    Forgot password?
+  </Link>
+</div>
 
             <div>
               <label className="mb-1 block text-sm text-slate-200">
