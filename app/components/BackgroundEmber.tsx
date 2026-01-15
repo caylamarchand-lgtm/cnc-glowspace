@@ -1,14 +1,14 @@
 export default function BackgroundEmber() {
   return (
-    <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
       {/* Warm glow layer */}
-      <div className="ember-glow absolute inset-0 opacity-40" />
+      <div className="ember-glow absolute inset-0 opacity-70" />
 
       {/* Embers */}
       {Array.from({ length: 50 }).map((_, i) => (
         <span
           key={i}
-          className="ember absolute bottom-[-10%] rounded-full opacity-80"
+          className="ember absolute bottom-[-10%] rounded-full opacity-90"
           style={{
             left: `${Math.random() * 100}%`,
             width: `${2 + Math.random() * 3}px`,

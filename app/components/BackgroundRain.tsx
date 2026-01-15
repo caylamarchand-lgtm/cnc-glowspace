@@ -1,6 +1,6 @@
 export default function BackgroundRain() {
   return (
-    <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
       {Array.from({ length: 120 }).map((_, i) => (
         <span
           key={i}

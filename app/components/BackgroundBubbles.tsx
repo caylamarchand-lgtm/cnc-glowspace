@@ -1,15 +1,15 @@
 export default function BackgroundBubbles() {
-  // Lightweight “floating bubbles” overlay
+  // Lightweight "floating bubbles" overlay
   const bubbles = Array.from({ length: 22 });
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden opacity-80">
       {bubbles.map((_, i) => {
         // Deterministic-ish variety without needing useMemo
-        const size = 14 + ((i * 7) % 34); // 14..48
-        const left = (i * 37) % 100; // 0..99
-        const dur = 9 + ((i * 13) % 10); // 9..18
-        const delay = ((i * 5) % 12) * -1; // negative staggers
+        const size = 14 + ((i * 7) % 34);
+        const left = (i * 37) % 100;
+        const dur = 9 + ((i * 13) % 10);
+        const delay = ((i * 5) % 12) * -1;
         const blur = i % 4 === 0 ? 2 : 0;
 
         return (
