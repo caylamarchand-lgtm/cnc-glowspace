@@ -58,25 +58,23 @@ export default function MakersPage() {
     // This uses your FK makers_posts.author_id -> public.profiles.id
     // If your FK name differs, change the "!makers_posts_author_id_fkey" part.
     const { data, error } = await supabase
-      .from("makers_posts")
-      .select(
-        `
-        id,
-        created_at,
-        post_type,
-        title,
-        description,
-        price,
-        contact,
-        author_id,
-        author:profiles!makers_posts_author_id_fkey (
-          id,
-          username,
-          display_name
-        )
-      `
-      )
-      .order("created_at", { ascending: false })
+  .from("makers_posts")
+  .select(`
+  id,
+  created_at,
+  post_type,
+  title,
+  description,
+  price,
+  contact,
+  author_id,
+  author:profiles (
+    id,
+    username,
+    display_name
+  )
+`)
+  .order("created_at", { ascending: false })
       .limit(50);
 
     if (error) {
