@@ -1,9 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
 
 type PostType = "sharing" | "sale" | "commissions";
+
+type Author = {
+  id: string;
+  username: string | null;
+  display_name: string | null;
+};
+
+type MakersPost = {
+  id: string;
+  created_at: string;
+  post_type: PostType;
+  title: string | null;
+  description: string | null;
+  price: string | null;
+  contact: string | null;
+  author_id: string;
+  author: Author | null;
+};
 
 export default function MakersPage() {
   const [postType, setPostType] = useState<PostType>("sharing");
@@ -11,95 +29,132 @@ export default function MakersPage() {
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [contact, setContact] = useState("");
-const [posts, setPosts] = useState<any[]>([]);
-const [loadingPosts, setLoadingPosts] = useState(false);
-const [feedFilter, setFeedFilter] = useState<PostType | "all">("all");
+
+  const [posts, setPosts] = useState<MakersPost[]>([]);
+  const [feedFilter, setFeedFilter] = useState<PostType | "all">("all");
+
+  const [loadingPosts, setLoadingPosts] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const showPrice = postType === "sale";
   const showContact = postType === "sale" || postType === "commissions";
- useEffect(() => {
-  loadPosts();
-}, []);
 
- async function loadPosts() {
-  setLoadingPosts(true);
+  const filteredPosts = useMemo(() => {
+    if (feedFilter === "all") return posts;
+    return posts.filter((p) => p.post_type === feedFilter);
+  }, [feedFilter, posts]);
 
- const { data, error } = await supabase
-  .from("makers_posts")
-  .select(`
-    id,
-    created_at,
-    post_type,
-    title,
-    description,
-    price,
-    contact,
-    author_id,
-    author:profiles (
-      id,
-      username,
-      display_name
-    )
-  `)
-  .order("created_at", { ascending: false })
-  .limit(50);
-console.log("POST 0 author:", data?.[0]?.author);
- if (error) {
-  console.error("❌ SUPABASE ERROR (raw):", error);
-  console.error("❌ SUPABASE ERROR (details):", {
-    message: (error as any)?.message,
-    code: (error as any)?.code,
-    details: (error as any)?.details,
-    hint: (error as any)?.hint,
-  });
+  useEffect(() => {
+    loadPosts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  alert("Could not load posts. Check console for details.");
-  setPosts([]);
-} else {
-  console.log("🟩 POSTS:", data);
-  setPosts(data ?? []);
-}
+  async function loadPosts() {
+    setLoadingPosts(true);
+    setError(null);
 
-  setLoadingPosts(false);
-}
- async function handleCreatePost() {
-  console.log("CREATE POST FIRED")
-  const { data: userData } = await supabase.auth.getUser();
-console.log("USER:",userData?.user)
-  if (!userData.user) {
-    alert("You must be logged in to post.");
-    return;
+    // IMPORTANT:
+    // This uses your FK makers_posts.author_id -> public.profiles.id
+    // If your FK name differs, change the "!makers_posts_author_id_fkey" part.
+    const { data, error } = await supabase
+      .from("makers_posts")
+      .select(
+        `
+        id,
+        created_at,
+        post_type,
+        title,
+        description,
+        price,
+        contact,
+        author_id,
+        author:profiles!makers_posts_author_id_fkey (
+          id,
+          username,
+          display_name
+        )
+      `
+      )
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (error) {
+      console.error("❌ loadPosts error:", error);
+      setError(error.message);
+      setPosts([]);
+      setLoadingPosts(false);
+      return;
+    }
+
+    setPosts((data ?? []) as MakersPost[]);
+    setLoadingPosts(false);
   }
 
- const { data: inserted, error } = await supabase
-  .from("makers_posts")
-  .insert({
-    author_id: userData.user.id,
-    post_type: postType,
-    title,
-    description,
-    price: showPrice ? price : null,
-    contact: showContact ? contact : null,
-  })
-  .select()
-  .single();
+  async function handleCreatePost() {
+    if (creating) return;
 
+    setError(null);
 
+    const cleanTitle = title.trim();
+    const cleanDesc = description.trim();
+    const cleanPrice = price.trim();
+    const cleanContact = contact.trim();
 
- if (error) {
-  console.error("INSERT ERROR:", error);
-  alert(error.message);
-  return;
-}
+    // require at least something meaningful
+    if (!cleanTitle && !cleanDesc) {
+      setError("Add a title or description 🙂");
+      return;
+    }
 
-console.log("INSERTED ROW:", inserted);
+    setCreating(true);
 
-alert("Post created!");
-setTitle("");
-setDescription("");
-setPrice("");
-setContact("");
-loadPosts();
-}
+    const { data: userData, error: userErr } = await supabase.auth.getUser();
+    const user = userData?.user;
+
+    if (userErr) {
+      console.error("❌ getUser error:", userErr);
+      setError(userErr.message);
+      setCreating(false);
+      return;
+    }
+
+    if (!user) {
+      setError("You must be logged in to post.");
+      setCreating(false);
+      return;
+    }
+
+    const insertPayload = {
+      author_id: user.id,
+      post_type: postType,
+      title: cleanTitle || null,
+      description: cleanDesc || null,
+      price: showPrice ? cleanPrice || null : null,
+      contact: showContact ? cleanContact || null : null,
+    };
+
+    const { error: insertError } = await supabase
+      .from("makers_posts")
+      .insert(insertPayload);
+
+    if (insertError) {
+      console.error("❌ INSERT ERROR:", insertError);
+      setError(insertError.message);
+      setCreating(false);
+      return;
+    }
+
+    // clear form
+    setTitle("");
+    setDescription("");
+    setPrice("");
+    setContact("");
+
+    // refresh list
+    await loadPosts();
+    setCreating(false);
+  }
 
   return (
     <main className="max-w-5xl mx-auto px-6 py-12">
@@ -167,19 +222,23 @@ loadPosts();
           </div>
         </div>
 
-       <div className="mt-2 flex items-center gap-3">
-  <span className="text-xs px-2 py-1 rounded-full border border-zinc-700 text-zinc-200">
-    {postType === "sharing" && "✅ Just sharing"}
-    {postType === "sale" && "🏷️ For sale"}
-    {postType === "commissions" && "✍️ Commissions open"}
-  </span>
+        <div className="mt-2 flex items-center gap-3">
+          <span className="text-xs px-2 py-1 rounded-full border border-zinc-700 text-zinc-200">
+            {postType === "sharing" && "✅ Just sharing"}
+            {postType === "sale" && "🏷️ For sale"}
+            {postType === "commissions" && "✍️ Commissions open"}
+          </span>
 
-  <p className="text-sm text-zinc-300">
-    {postType === "sharing" && "Share your work with no pressure to sell."}
-    {postType === "sale" && "List an item for sale (optional price + how to buy)."}
-    {postType === "commissions" && "Let people know you're open for custom work/commissions."}
-  </p>
-</div>
+          <p className="text-sm text-zinc-300">
+            {postType === "sharing" && "Share your work with no pressure to sell."}
+            {postType === "sale" && "List an item for sale (optional price + how to buy)."}
+            {postType === "commissions" && "Let people know you're open for custom work/commissions."}
+          </p>
+        </div>
+
+        {error && (
+          <p className="mt-4 text-sm text-red-400">{error}</p>
+        )}
 
         <div className="mt-5 grid gap-4">
           <div>
@@ -216,7 +275,9 @@ loadPosts();
 
           {showContact && (
             <div>
-              <label className="text-sm text-zinc-300">How should people contact you?</label>
+              <label className="text-sm text-zinc-300">
+                How should people contact you?
+              </label>
               <input
                 value={contact}
                 onChange={(e) => setContact(e.target.value)}
@@ -226,118 +287,120 @@ loadPosts();
             </div>
           )}
 
+          <div className="flex items-center justify-end">
+            <button
+              type="button"
+              onClick={handleCreatePost}
+              disabled={creating}
+              className="mt-2 w-fit rounded-xl bg-white px-5 py-2.5 text-black font-semibold hover:opacity-90 disabled:opacity-60"
+            >
+              {creating ? "Posting..." : "Post"}
+            </button>
+          </div>
+        </div>
+
+        {/* Feed Filters */}
+        <div className="mt-8 flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={handleCreatePost}
-            className="mt-2 w-fit rounded-xl bg-white px-5 py-2.5 text-black font-semibold hover:opacity-90"
+            onClick={() => setFeedFilter("all")}
+            className={`px-3 py-1.5 rounded-full text-sm border ${
+              feedFilter === "all"
+                ? "border-white text-white"
+                : "border-zinc-700 text-zinc-300 hover:text-white"
+            }`}
           >
-            Post (demo)
+            All
           </button>
 
-          <p className="text-xs text-zinc-500">
-            This is UI-only for now. Next step we’ll connect it to your database so posts actually save.
-          </p>
-        </div>
-        {/* Makers Feed */}
-        {/* Feed Filters */}
-<div className="mt-8 flex flex-wrap items-center gap-2">
-  <button
-    type="button"
-    onClick={() => setFeedFilter("all")}
-    className={`px-3 py-1.5 rounded-full text-sm border ${
-      feedFilter === "all"
-        ? "border-white text-white"
-        : "border-zinc-700 text-zinc-300 hover:text-white"
-    }`}
-  >
-    All
-  </button>
+          <button
+            type="button"
+            onClick={() => setFeedFilter("sharing")}
+            className={`px-3 py-1.5 rounded-full text-sm border ${
+              feedFilter === "sharing"
+                ? "border-white text-white"
+                : "border-zinc-700 text-zinc-300 hover:text-white"
+            }`}
+          >
+            🧶 Makers
+          </button>
 
-  <button
-    type="button"
-    onClick={() => setFeedFilter("sharing")}
-    className={`px-3 py-1.5 rounded-full text-sm border ${
-      feedFilter === "sharing"
-        ? "border-white text-white"
-        : "border-zinc-700 text-zinc-300 hover:text-white"
-    }`}
-  >
-    🧶 Makers
-  </button>
+          <button
+            type="button"
+            onClick={() => setFeedFilter("sale")}
+            className={`px-3 py-1.5 rounded-full text-sm border ${
+              feedFilter === "sale"
+                ? "border-white text-white"
+                : "border-zinc-700 text-zinc-300 hover:text-white"
+            }`}
+          >
+            💰 For Sale
+          </button>
 
-  <button
-    type="button"
-    onClick={() => setFeedFilter("sale")}
-    className={`px-3 py-1.5 rounded-full text-sm border ${
-      feedFilter === "sale"
-        ? "border-white text-white"
-        : "border-zinc-700 text-zinc-300 hover:text-white"
-    }`}
-  >
-    💰 For Sale
-  </button>
-
-  <button
-    type="button"
-    onClick={() => setFeedFilter("commissions")}
-    className={`px-3 py-1.5 rounded-full text-sm border ${
-      feedFilter === "commissions"
-        ? "border-white text-white"
-        : "border-zinc-700 text-zinc-300 hover:text-white"
-    }`}
-  >
-    ✍️ Commissions
-  </button>
-</div>
-<div className="mt-10 space-y-4">
-  {loadingPosts && (
-    <p className="text-sm text-zinc-400">Loading makers posts…</p>
-  )}
-
-  {!loadingPosts && posts.length === 0 && (
-    <p className="text-sm text-zinc-500">No makers posts yet.</p>
-  )}
-
-  {!loadingPosts &&
-  (feedFilter === "all"
-    ? posts
-    : posts.filter((p) => p.post_type === feedFilter)
-  ).map((post) => (
-      <div
-        key={post.id}
-        className="rounded-xl border border-zinc-800 bg-zinc-950 p-4"
-      >
-        <div className="text-xs text-zinc-400 mb-1">
-          {post.post_type === "sharing" && "🧶 Just sharing"}
-          {post.post_type === "sale" && "💰 For sale"}
-          {post.post_type === "commissions" && "✍️ Commissions open"}
+          <button
+            type="button"
+            onClick={() => setFeedFilter("commissions")}
+            className={`px-3 py-1.5 rounded-full text-sm border ${
+              feedFilter === "commissions"
+                ? "border-white text-white"
+                : "border-zinc-700 text-zinc-300 hover:text-white"
+            }`}
+          >
+            ✍️ Commissions
+          </button>
         </div>
 
-        <h3 className="text-lg font-semibold text-white">
-          {post.title}
-        </h3>
-<p className="text-xs text-zinc-400 mt-1">
-  by{" "}
-  <span className="text-zinc-200">
-    {post.author?.display_name || post.author?.username || "Maker"}
-  </span>
-</p>
-        <p className="text-zinc-300 mt-1">{post.description}</p>
+        {/* Feed */}
+        <div className="mt-10 space-y-4">
+          {loadingPosts && (
+            <p className="text-sm text-zinc-400">Loading makers posts…</p>
+          )}
 
-        {post.price && (
-          <p className="mt-2 text-sm text-zinc-300">
-            💵 Price: {post.price}
-          </p>
-        )}
+          {!loadingPosts && filteredPosts.length === 0 && (
+            <p className="text-sm text-zinc-500">No makers posts yet.</p>
+          )}
 
-        {post.contact && (
-          <p className="mt-1 text-sm text-zinc-400">
-            📩 Contact: {post.contact}
-          </p>
-        )}
-      </div>
-    ))}
-</div>
+          {!loadingPosts &&
+            filteredPosts.map((post) => (
+              <div
+                key={post.id}
+                className="rounded-xl border border-zinc-800 bg-zinc-950 p-4"
+              >
+                <div className="text-xs text-zinc-400 mb-1">
+                  {post.post_type === "sharing" && "🧶 Just sharing"}
+                  {post.post_type === "sale" && "💰 For sale"}
+                  {post.post_type === "commissions" && "✍️ Commissions open"}
+                </div>
+
+                <h3 className="text-lg font-semibold text-white">
+                  {post.title ?? "(No title)"}
+                </h3>
+
+                <p className="text-xs text-zinc-400 mt-1">
+                  by{" "}
+                  <span className="text-zinc-200">
+                    {post.author?.display_name || post.author?.username || "Maker"}
+                  </span>
+                </p>
+
+                {post.description && (
+                  <p className="text-zinc-300 mt-1">{post.description}</p>
+                )}
+
+                {post.price && (
+                  <p className="mt-2 text-sm text-zinc-300">
+                    💵 Price: {post.price}
+                  </p>
+                )}
+
+                {post.contact && (
+                  <p className="mt-1 text-sm text-zinc-400">
+                    📩 Contact: {post.contact}
+                  </p>
+                )}
+              </div>
+            ))}
+        </div>
       </section>
     </main>
   );
