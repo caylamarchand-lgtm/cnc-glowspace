@@ -20,8 +20,7 @@ type Post = {
 };
 
 function timeAgo(dateInput: string | Date) {
-  const date =
-    typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+  const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
 
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
   if (Number.isNaN(seconds)) return "";
@@ -60,6 +59,7 @@ export default function FeedPage() {
 
     if (!session?.user?.id) {
       router.push("/login");
+      setLoading(false);
       return;
     }
 
@@ -89,6 +89,44 @@ export default function FeedPage() {
     setLoading(false);
   }
 
+  async function createPost() {
+    if (submitting) return;
+
+    const content = newPost.trim();
+    if (!content) {
+      setError("Type something first 🙂");
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user = sessionData.session?.user;
+
+    if (!user) {
+      router.push("/login");
+      setSubmitting(false);
+      return;
+    }
+
+    const { error: insertError } = await supabase.from("posts").insert({
+      content,
+      user_id: user.id,
+    });
+
+    if (insertError) {
+      console.error("Create post error:", insertError);
+      setError(insertError.message);
+      setSubmitting(false);
+      return;
+    }
+
+    setNewPost("");
+    await loadFeed();
+    setSubmitting(false);
+  }
+
   useEffect(() => {
     loadFeed();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -116,11 +154,14 @@ export default function FeedPage() {
           />
           <div className="flex justify-between items-center mt-2 text-sm text-white/60">
             <span>{remaining} characters left</span>
+
             <button
+              type="button"
+              onClick={createPost}
               disabled={submitting}
               className="rounded-xl px-4 py-2 bg-pink-500/30 hover:bg-pink-500/40 transition"
             >
-              Post to GlowSpace
+              {submitting ? "Posting..." : "Post to GlowSpace"}
             </button>
           </div>
         </div>
@@ -131,31 +172,29 @@ export default function FeedPage() {
 
         {/* POSTS */}
         <div className="space-y-4">
-          {posts.map((post) => (
-            <div
-              key={post.id}
-              className="rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 p-4"
-            >
-              {/* NAME + TIME */}
-              <div className="flex items-center gap-2 mb-2 text-sm text-white/70">
-                <span className="font-semibold text-white">
-                  {Array.isArray(post.profiles)
-                    ? post.profiles[0]?.display_name ||
-                      post.profiles[0]?.username ||
-                      "Unknown"
-                    : post.profiles?.display_name ||
-                      post.profiles?.username ||
-                      "Unknown"}
-                </span>
-                <span className="text-white/40">
-                  • {timeAgo(post.created_at)}
-                </span>
-              </div>
+          {posts.map((post) => {
+            const p = Array.isArray(post.profiles)
+              ? post.profiles[0]
+              : post.profiles;
 
-              {/* CONTENT */}
-              <p className="text-white">{post.content}</p>
-            </div>
-          ))}
+            const name = p?.display_name || p?.username || "Unknown";
+
+            return (
+              <div
+                key={post.id}
+                className="rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 p-4"
+              >
+                {/* NAME + TIME */}
+                <div className="flex items-center gap-2 mb-2 text-sm text-white/70">
+                  <span className="font-semibold text-white">{name}</span>
+                  <span className="text-white/40">• {timeAgo(post.created_at)}</span>
+                </div>
+
+                {/* CONTENT */}
+                <p className="text-white">{post.content}</p>
+              </div>
+            );
+          })}
         </div>
       </div>
     </main>
