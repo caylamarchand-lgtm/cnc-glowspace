@@ -8,25 +8,24 @@ import type { Session } from '@supabase/supabase-js'
 export default function NavBar() {
   const [isAuthed, setIsAuthed] = useState(false)
 
- useEffect(() => {
+useEffect(() => {
   // Initial session check
   supabase.auth.getSession().then(({ data }) => {
-    setIsAuthed(!!data.session)
-  })
+    setIsAuthed(!!data.session);
+  });
 
   // Listen for auth changes
   const {
     data: { subscription },
   } = supabase.auth.onAuthStateChange((_event, session) => {
-    setIsAuthed(!!session)
-  })
+    setIsAuthed(!!session);
+  });
 
-  // Cleanup listener on unmount
+  // Cleanup
   return () => {
-    subscription.unsubscribe()
-  }
-}, [])
-
+    subscription.unsubscribe();
+  };
+}, []);
  return (
   <nav className="flex items-center gap-6 p-4 border-b border-zinc-800">
     <Link href="/" className="text-zinc-100 hover:text-white font-medium">

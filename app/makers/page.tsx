@@ -68,7 +68,7 @@ export default function MakersPage() {
   price,
   contact,
   author_id,
-  author:profiles (
+  author:profiles!makers_posts_author_id_fkey (
     id,
     username,
     display_name
