@@ -48,6 +48,10 @@ useEffect(() => {
       Reels
     </Link>
 
+<Link href="/live" className="text-red-400 hover:text-red-300 font-semibold">
+  🔴 Live
+</Link>
+
     <Link href="/profile" className="text-zinc-300 hover:text-white">
       Profile
     </Link>
