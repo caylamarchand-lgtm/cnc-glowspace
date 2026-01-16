@@ -7,6 +7,7 @@ import type { Session } from '@supabase/supabase-js'
 
 export default function NavBar() {
   const [isAuthed, setIsAuthed] = useState(false)
+const [isLive, setIsLive] = useState(false)
 
 useEffect(() => {
   // Initial session check
@@ -26,6 +27,23 @@ useEffect(() => {
     subscription.unsubscribe();
   };
 }, []);
+
+useEffect(() => {
+  const checkLive = async () => {
+    try {
+      const res = await fetch("/api/livekit/status?roomName=glowspace-live");
+      const data = await res.json();
+      setIsLive(data.isLive);
+    } catch (err) {
+      console.error("Live status check failed", err);
+    }
+  };
+
+  checkLive();
+  const interval = setInterval(checkLive, 15000);
+  return () => clearInterval(interval);
+}, []);
+
  return (
   <nav className="flex items-center gap-6 p-4 border-b border-zinc-800">
     <Link href="/" className="text-zinc-100 hover:text-white font-medium">
@@ -48,9 +66,21 @@ useEffect(() => {
       Reels
     </Link>
 
-<Link href="/live" className="text-red-400 hover:text-red-300 font-semibold">
-  🔴 Live
+
+<Link
+  href="/live"
+  className={
+    isLive
+      ? "text-red-500 hover:text-red-400 font-semibold animate-pulse"
+      : "text-zinc-400 hover:text-white"
+  }
+>
+  {isLive ? "🔴 Live" : "Live"}
 </Link>
+
+
+
+
 
     <Link href="/profile" className="text-zinc-300 hover:text-white">
       Profile
