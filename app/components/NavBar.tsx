@@ -29,15 +29,22 @@ useEffect(() => {
 }, []);
 
 useEffect(() => {
-  const checkLive = async () => {
-    try {
-      const res = await fetch("/api/livekit/status?roomName=glowspace-live");
-      const data = await res.json();
-      setIsLive(data.isLive);
-    } catch (err) {
-      console.error("Live status check failed", err);
+ const checkLive = async () => {
+  try {
+    const res = await fetch("/api/livekit/status?roomName=glowspace-live");
+
+    // 🔇 If LiveKit isn't ready, fail silently
+    if (!res.ok) {
+      console.warn("LiveKit status unavailable");
+      return;
     }
-  };
+
+    const data = await res.json();
+    setIsLive(!!data?.isLive);
+  } catch (err) {
+    console.warn("LiveKit not ready yet");
+  }
+};
 
   checkLive();
   const interval = setInterval(checkLive, 15000);

@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import LiveBubbles from "../components/LiveBubbles";
+
 
 export default function GlowSpacePage() {
   return (
@@ -18,6 +20,8 @@ export default function GlowSpacePage() {
         <div className="hearts hearts-slow" />
         <div className="hearts hearts-fast" />
       </div>
+
+<LiveBubbles/>
 
       {/* content */}
       <div className="relative z-10 px-6 py-16 flex items-center justify-center">

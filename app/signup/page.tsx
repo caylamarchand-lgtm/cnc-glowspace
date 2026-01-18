@@ -9,12 +9,21 @@ export default function SignupPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // ✅ Hard block: must confirm age
+    if (!ageConfirmed) {
+      setError("You must confirm you are 21+ to join GlowSpace.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setMessage(null);
@@ -24,6 +33,11 @@ export default function SignupPage() {
       password,
       options: {
         emailRedirectTo: "https://www.cncglowspace.com/login",
+        // ✅ Store consent (no DOB)
+        data: {
+          age_confirmed: true,
+          age_confirmed_at: new Date().toISOString(),
+        },
       },
     });
 
@@ -58,9 +72,21 @@ export default function SignupPage() {
           backdropFilter: "blur(8px)",
         }}
       >
-        <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 14, color: "#fff" }}>
+        <h1
+          style={{
+            fontSize: 28,
+            fontWeight: 700,
+            marginBottom: 14,
+            color: "#fff",
+          }}
+        >
           Create your GlowSpace account
         </h1>
+
+        {/* ✅ Small notice for extra protection */}
+        <p style={{ color: "#fff", opacity: 0.85, marginTop: 0 }}>
+          GlowSpace is a <strong>21+</strong> platform.
+        </p>
 
         <form onSubmit={handleSignup} style={{ display: "grid", gap: 12 }}>
           <input
@@ -96,16 +122,42 @@ export default function SignupPage() {
             }}
           />
 
+          {/* ✅ Age confirmation (no DOB) */}
+          <label
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 8,
+              fontSize: 13,
+              color: "#ddd",
+              marginTop: 4,
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={ageConfirmed}
+              onChange={(e) => setAgeConfirmed(e.target.checked)}
+              style={{ marginTop: 3 }}
+            />
+            <span>
+              I confirm that I am <strong>21 years of age or older</strong> and
+              eligible to use GlowSpace.
+            </span>
+          </label>
+
           <button
             type="submit"
-            disabled={loading}
+            // ✅ Bonus protection: button disabled until checked
+            disabled={!ageConfirmed || loading}
             style={{
               padding: 12,
               borderRadius: 10,
               border: "none",
               fontWeight: 700,
-              cursor: loading ? "not-allowed" : "pointer",
-              background: "linear-gradient(90deg, rgba(255,0,200,0.9), rgba(120,80,255,0.9))",
+              cursor: !ageConfirmed || loading ? "not-allowed" : "pointer",
+              opacity: !ageConfirmed || loading ? 0.7 : 1,
+              background:
+                "linear-gradient(90deg, rgba(255,0,200,0.9), rgba(120,80,255,0.9))",
               color: "#fff",
             }}
           >
@@ -113,7 +165,15 @@ export default function SignupPage() {
           </button>
 
           {error && <p style={{ color: "#ff4d4d", margin: 0 }}>{error}</p>}
-          {message && <p style={{ color: "#fff", opacity: 0.9, margin: 0 }}>{message}</p>}
+          {message && (
+            <p style={{ color: "#fff", opacity: 0.9, margin: 0 }}>{message}</p>
+          )}
+
+          {/* ✅ Extra legal-ish note without being scary */}
+          <p style={{ color: "#fff", opacity: 0.75, fontSize: 12, margin: 0 }}>
+            By creating an account, you confirm you meet the age requirement and
+            agree to follow GlowSpace rules.
+          </p>
         </form>
 
         <p style={{ marginTop: 14, color: "#fff", opacity: 0.9 }}>

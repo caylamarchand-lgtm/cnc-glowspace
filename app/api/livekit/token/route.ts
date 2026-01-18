@@ -9,14 +9,18 @@ type Body = {
 
 export async function POST(req: Request) {
   try {
-    const { roomName, userName, isHost = false } = (await req.json()) as Body;
+    // Expect userId from the client (from Supabase session)
+const { roomName, userName, userId, isHost } = await req.json();
 
-    if (!roomName || !userName) {
-      return NextResponse.json(
-        { error: "Missing roomName or userName" },
-        { status: 400 }
-      );
-    }
+if (!roomName || !userName || !userId) {
+  return NextResponse.json(
+    { error: "Missing roomName, userName, or userId" },
+    { status: 400 }
+  );
+}
+
+// identity should be stable + unique per user
+const identity = userId; // ✅ Supabase auth user.id
 
     const apiKey = process.env.LIVEKIT_API_KEY;
     const apiSecret = process.env.LIVEKIT_API_SECRET;
@@ -28,8 +32,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // identity must be unique per person
-    const identity = `${userName}-${Math.random().toString(36).slice(2, 8)}`;
+    
 
     const at = new AccessToken(apiKey, apiSecret, {
       identity,
