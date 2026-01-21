@@ -58,6 +58,7 @@ type BackgroundEffect =
 
 export default function ProfilePage() {
   // ---------- State ----------
+  const GLOWSPACE_BG = "/glowspace-logo.png";
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
@@ -72,6 +73,10 @@ export default function ProfilePage() {
   const [backgroundUrl, setBackgroundUrl] = useState("");
   const [musicUrl, setMusicUrl] = useState("");
   const [glowCss, setGlowCss] = useState<string | null>(null);
+
+  // 🎨 theme system (profile_themes)
+  const [themeCss, setThemeCss] = useState<string>("");
+  const [themePreviewUrl, setThemePreviewUrl] = useState<string>("");
 
   // glowcodes
   const [glowCrew, setGlowCrew] = useState<GlowCode[]>([]);
@@ -90,8 +95,8 @@ export default function ProfilePage() {
   const activeBackgroundEffect: BackgroundEffect =
     (customization?.background_effect as BackgroundEffect) ?? null;
 
-    const panelClass =
-  "rounded-2xl border border-pink-500/40 bg-[#0b1020]/95 shadow-[0_0_40px_rgba(255,180,220,0.25)]";
+  const panelClass =
+    "rounded-2xl border border-pink-500/40 bg-[#0b1020]/95 shadow-[0_0_40px_rgba(255,180,220,0.25)]";
 
   // ---------- Effects ----------
   useEffect(() => {
@@ -118,6 +123,7 @@ export default function ProfilePage() {
         } = await supabase.auth.getUser();
 
         if (authError) throw authError;
+
         if (!authUser) {
           setError("You need to be logged in to edit your GlowSpace.");
           setLoadingProfile(false);
@@ -125,6 +131,31 @@ export default function ProfilePage() {
         }
 
         setUserId(authUser.id);
+
+        // 🎨 Load selected theme for this user (profiles.theme_id -> profile_themes)
+        const { data: themeRef, error: themeRefErr } = await supabase
+          .from("profiles")
+          .select("theme_id")
+          .eq("id", authUser.id)
+          .single();
+
+        if (themeRefErr) console.log("theme ref error:", themeRefErr);
+
+        if (themeRef?.theme_id) {
+          const { data: themeRow, error: themeErr } = await supabase
+            .from("profile_themes")
+            .select("css, preview_url")
+            .eq("id", themeRef.theme_id)
+            .single();
+
+          if (themeErr) console.log("theme load error:", themeErr);
+
+          setThemeCss(themeRow?.css || "");
+          setThemePreviewUrl(themeRow?.preview_url || "");
+        } else {
+          setThemeCss("");
+          setThemePreviewUrl("");
+        }
 
         // ✅ ensure customization row exists
         const customizationRow = await ensureProfileCustomization(authUser.id);
@@ -177,9 +208,7 @@ export default function ProfilePage() {
       .update({ background_effect: value })
       .eq("user_id", userId);
 
-    if (upErr) {
-      setError(upErr.message);
-    }
+    if (upErr) setError(upErr.message);
   };
 
   // ---------- Save ----------
@@ -188,7 +217,6 @@ export default function ProfilePage() {
 
     setSaving(true);
     setError(null);
-
     setMessage(null);
 
     try {
@@ -234,6 +262,7 @@ export default function ProfilePage() {
   };
 
   // ---------- Styling helpers ----------
+  // Your custom background URL (still works)
   const previewStyle = backgroundUrl
     ? {
         backgroundImage: `url(${backgroundUrl})`,
@@ -241,10 +270,27 @@ export default function ProfilePage() {
         backgroundPosition: "center",
       }
     : undefined;
+const GLOWSPACE_LOGO_BG = "/glowspace_logo.png";
+  "PASTE_YOUR_GLOWSPACE_LOGO_IMAGE_URL_HERE";
+const mainBgStyle: React.CSSProperties = {
+  backgroundImage: `url(${GLOWSPACE_LOGO_BG})`,
+  backgroundSize: "cover",
+  backgroundPosition: "center",
+  backgroundAttachment: "fixed",
+};
+
+  // 🎨 Theme preview background (so you can SEE the theme instantly)
+  const themeBgStyle = {
+  backgroundImage: `url(${GLOWSPACE_BG})`,
+  backgroundRepeat: "no-repeat",
+  backgroundPosition: "center",
+  backgroundSize: "contain",
+  backgroundAttachment: "fixed",
+  backgroundColor: "#020617", // dark fallback so text pops
+};
 
   const mainClassName =
     "min-h-screen relative overflow-hidden text-slate-100 px-4 py-10";
-   
 
   const renderBackground = () => {
     switch (activeBackgroundEffect) {
@@ -267,17 +313,40 @@ export default function ProfilePage() {
 
   // ---------- UI ----------
   return (
-    <main className={mainClassName}>
+<main
+  className={mainClassName}
+  style={{
+    backgroundImage: `url(${GLOWSPACE_BG})`,
+    backgroundRepeat: "no-repeat",
+    backgroundSize: "contain",
+    backgroundPosition: "center",
+    backgroundAttachment: "fixed",
+    backgroundColor: "#020617",
+  }}
+  >
+
+
+
       {/* BACKGROUND LAYER */}
       <div className="pointer-events-none absolute inset-0 z-0 opacity-95">
         {renderBackground()}
       </div>
-
+<div className="text-xs text-slate-300/70 mb-2">
+  themePreviewUrl: {themePreviewUrl || "EMPTY"}
+</div>
       {/* CONTENT LAYER */}
       <div className="relative z-10">
         <div className="text-xs text-slate-300/70 mb-2">
           Glowcodes loaded: {glowCrew.length}
         </div>
+
+        {/* ✅ Debug: confirms theme actually loaded */}
+<div className="text-xs text-slate-300/70 mb-2">
+  Theme loaded:
+  {themeCss ?  `${themeCss.length} chars` : " none"}
+ {" — "}
+  {themePreviewUrl ? "preview available" : "no preview"}
+</div>
 
         {customization && (
           <div className="text-xs opacity-70 mb-4">
@@ -295,7 +364,7 @@ export default function ProfilePage() {
               Live preview of how your GlowSpace card will look.
             </p>
 
-            {/* ✅ FIXED PREVIEW CARD (solid + inner glow, blocks hearts completely) */}
+            {/* ✅ PREVIEW CARD */}
             <div
               className="
                 relative z-10 overflow-hidden
@@ -390,8 +459,8 @@ export default function ProfilePage() {
               Customize your glow ✏️
             </h2>
 
-            {/* 🌟 Background Effects (RADIO so only one can be on) */}
-             <div className={`mt-4 p-4 ${panelClass}`}>
+            {/* 🌟 Background Effects */}
+            <div className={`mt-4 p-4 ${panelClass}`}>
               <p className="text-sm font-semibold text-slate-100/90 mb-1">
                 Background effects
               </p>
@@ -433,7 +502,7 @@ export default function ProfilePage() {
 
             {/* ✅ Photos block */}
             <div className="relative mt-6 mb-6 p-4 rounded-xl border border-white/10 bg-[#0b1020]/95 shadow-[0_0_40px_rgba(255,180,220,0.18)]">
-            <div className="pointer-events-none absolute inset-0 rounded-xl shadow-[inset_0_0_30px_rgba(255,180,220,0.20)]" />
+              <div className="pointer-events-none absolute inset-0 rounded-xl shadow-[inset_0_0_30px_rgba(255,180,220,0.20)]" />
               <h3 className="text-pink-200 font-semibold mb-4">Photos ✨</h3>
 
               {/* Profile picture row */}
