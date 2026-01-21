@@ -6,6 +6,14 @@ import Link from "next/link";
 import { supabase } from "../lib/supabaseClient";
 import SpaceBackground from "../components/SpaceBackground";
 
+const COMMENT_COOLDOWN_MS = 8000; // 8 seconds (adjust later)
+const REPLY_COOLDOWN_MS = 8000;
+
+function msLeft(lastMs: number, cooldownMs: number) {
+  const left = cooldownMs - (Date.now() - lastMs);
+  return Math.max(0, left);
+}
+
 type ProfileLite = {
   display_name: string | null;
   username: string | null;
@@ -70,6 +78,9 @@ export default function FeedPage() {
   const [error, setError] = useState<string | null>(null);
 const [replyingTo, setReplyingTo] = useState<string | null>(null);
 const [replyText, setReplyText] = useState<Record<string, string>>({});
+const [sending, setSending] = useState<Record<string, boolean>>({});
+const [lastSentAt, setLastSentAt] = useState<Record<string, number>>({});
+const [cooldownError, setCooldownError] = useState<Record<string, string>>({});
 
 
   // Comments state
@@ -216,14 +227,34 @@ const [replyText, setReplyText] = useState<Record<string, string>>({});
     const text = (commentText[postId] || "").trim();
     if (!text) return;
 
+const key = `comment:${postId}`;
+
+if (sending[key]) return;
+
+const last = lastSentAt[key] ?? 0;
+const left = msLeft(last, COMMENT_COOLDOWN_MS);
+
+if (left > 0) {
+  setCooldownError((p) => ({
+    ...p,
+    [key]: `Wait ${Math.ceil(left / 1000)}s before commenting again.`,
+  }));
+  return;
+}
+
+setCooldownError((p) => ({ ...p, [key]: "" }));
+setSending((p) => ({ ...p, [key]: true }));
+
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
     if (!user) {
-      router.push("/login");
-      return;
-    }
+  router.push("/login");
+  setSending((p) => ({ ...p, [key]: false })); // important!
+  return;
+}
 
     const { data, error } = await supabase
       .from("comments")
