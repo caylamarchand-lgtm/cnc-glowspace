@@ -72,7 +72,7 @@ useEffect(() => {
     <Link href="/reels" className="text-zinc-300 hover:text-white">
       Reels
     </Link>
-
+<Link href="/discover">Discover</Link>
 
 <Link
   href="/live"

@@ -1,126 +1,162 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import type React from "react";
+import FriendsList from "./FriendsList"
+import ProfileEffectsClient from "../../components/ProfileEffectsClient";
+import type { Effect } from "../../components/ProfileEffects";
+import ClientOnly from "../../components/ClientOnly";
+import ProfileCard from "../../components/ProfileCard";
 
-type Profile = {
+type BaseProfile = {
   id: string;
   username: string;
   display_name: string | null;
   avatar_url: string | null;
   bio: string | null;
   about_me: string | null;
-
-  // new (optional extras)
-  music_url: string | null;
-  background_url: string | null;
-  theme: string | null;
   status: string | null;
+  is_public: boolean | null;
+};
+
+type Customization = {
+  background_url?: string | null;
+  music_url?: string | null;
+  custom_css?: string | null;
+  theme?: string | null;
+  profile_layout?: string | null;
+  accent_color?: string | null;
+  background_effect?: string | null;
 };
 
 type PageProps = {
   params: Promise<{ username: string }>;
 };
 
+const EFFECTS: Effect[] = [
+  "stars_hearts",
+  "bubbles",
+  "snow",
+  "fog",
+  "ember",
+  "neon_grid",
+];
+
+function isEffect(v: unknown): v is Effect {
+  return typeof v === "string" && (EFFECTS as string[]).includes(v);
+}
+
 export default async function ProfilePage({ params }: PageProps) {
   const { username } = await params;
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    // If env vars are missing, treat as not found (or you can throw)
-    return notFound();
+    throw new Error("Missing Supabase env vars");
   }
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-  const raw = username ?? "";
-  const clean = decodeURIComponent(raw).trim();
-
+  const clean = decodeURIComponent(username ?? "").trim();
   if (!clean) return notFound();
 
+  // 1) base profile by username
   const { data: profile, error: profileError } = await supabase
-
-
-  
     .from("profiles")
-    .select("id, username, display_name, avatar_url, bio, about_me, music_url, background_url, theme, status")
+    .select(
+      `
+      id,
+      username,
+      display_name,
+      avatar_url,
+      bio,
+      about_me,
+      status,
+      is_public
+    `
+    )
     .ilike("username", clean)
-    .maybeSingle<Profile>();
+    .maybeSingle<BaseProfile>();
 
-  // If the user doesn't exist, show 404
- if (profileError) {
-  console.error("SUPABASE PROFILE ERROR:", profileError);
-  throw new Error(profileError.message);
-}
+  if (profileError || !profile) return notFound();
+  if (profile.is_public === false) return notFound();
 
-if (!profile) {
-  console.log("NO PROFILE FOUND FOR:", clean);
-  return notFound();
-}
-const pageStyle: React.CSSProperties = {
-  maxWidth: 900,
-  margin: "0 auto",
-  padding: 24,
-  minHeight: "100vh",
-  backgroundSize: "cover",
-  backgroundPosition: "center",
-};
+  // 2) customization by SAME id
+  const { data: customization } = await supabase
+    .from("profile_customization")
+    .select(
+      `
+      background_url,
+      music_url,
+      custom_css,
+      theme,
+      profile_layout,
+      accent_color,
+      background_effect
+    `
+    )
+    .eq("user_id", profile.id)
+    .maybeSingle<Customization>();
 
-if (profile.background_url) {
-  pageStyle.backgroundImage = `url(${profile.background_url})`
-}
+  const mergedProfile = {
+    ...profile,
+    ...(customization ?? {}),
+  };
+
+  // background image
+  const bgUrl =
+    (mergedProfile as any)?.background_url ??
+    (mergedProfile as any)?.backgroundUrl ??
+    null;
+
+  const pageStyle: React.CSSProperties = {
+    maxWidth: 980,
+    margin: "0 auto",
+    padding: 24,
+    minHeight: "100vh",
+    position: "relative",
+    overflow: "hidden",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    backgroundRepeat: "no-repeat",
+    backgroundAttachment: "fixed",
+  };
+
+  if (bgUrl) pageStyle.backgroundImage = `url(${bgUrl})`;
+
+  // effect
+  const rawEffect =
+    (mergedProfile as any)?.background_effect ??
+    (mergedProfile as any)?.effect ??
+    null;
+
+  const effect: Effect | null = isEffect(rawEffect) ? rawEffect : null;
+
   return (
     <main style={pageStyle}>
-      <header style={{ display: "flex", gap: 16, alignItems: "center" }}>
-        <div
-          style={{
-            width: 72,
-            height: 72,
-            borderRadius: 999,
-            overflow: "hidden",
-            background: "#222",
-            display: "grid",
-            placeItems: "center",
-            flexShrink: 0,
-          }}
-        >
-          {profile.avatar_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={profile.avatar_url}
-              alt={`${profile.username} avatar`}
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            />
-          ) : (
-            <span style={{ fontSize: 24 }}>
-              {profile.username?.[0]?.toUpperCase() ?? "U"}
-            </span>
-          )}
-        </div>
+      {/* Custom CSS */}
+      {customization?.custom_css ? (
+        <style dangerouslySetInnerHTML={{ __html: customization.custom_css }} />
+      ) : null}
 
-        <div>
-          <h1 style={{ fontSize: 28, margin: 0 }}>
-          {profile.display_name || profile.username || "GlowSpace user"}
-          </h1>
-          <p style={{ margin: "6px 0 0 0", opacity: 0.8 }}>
-            @{profile.username}
-          </p>
-        </div>
-      </header>
+      {/* Effects behind */}
+      <ClientOnly>
+        {effect ? <ProfileEffectsClient effect={effect} /> : null}
+      </ClientOnly>
 
-      {(profile.about_me ?? profile.bio) ? (
-  <section style={{ marginTop: 16 }}>
-    <p style={{ lineHeight: 1.6, margin: 0, whiteSpace: "pre-wrap" }}>
-      {profile.about_me ?? profile.bio}
-    </p>
-  </section>
-) : null}
-
-      <section style={{ marginTop: 28, paddingTop: 16, borderTop: "1px solid #333" }}>
-        <h2 style={{ margin: "0 0 8px 0", fontSize: 18 }}>Posts</h2>
-        <p style={{ margin: 0, opacity: 0.75 }}>
-          (We can wire this to your posts table next.)
-        </p>
-      </section>
+      {/* Foreground */}
+      <div style={{ position: "relative", zIndex: 1 }}>
+        <ProfileCard
+          avatarUrl={profile.avatar_url}
+          displayName={profile.display_name}
+          username={profile.username}
+          status={profile.status}
+          aboutMe={profile.about_me}
+          theme={customization?.theme ?? null}
+          musicUrl={customization?.music_url ?? null}
+        />
+        <FriendsList profileId={profile.id} />
+      </div>
     </main>
   );
 }

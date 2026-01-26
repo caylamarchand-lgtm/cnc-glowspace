@@ -251,6 +251,7 @@ export default function FeedPage() {
   // CREATE POST
   // -----------------------------
   async function submitPost() {
+    if (submitting) return;
     const content = newPost.trim();
     if (!content) return;
 
@@ -321,6 +322,7 @@ export default function FeedPage() {
         post_id: postId,
         user_id: user.id,
         content: text.slice(0, 500),
+        parent_comment_id:null,
       });
 
       if (insertErr) {
@@ -329,10 +331,11 @@ export default function FeedPage() {
       }
 
       setCommentText((p) => ({ ...p, [postId]: "" }));
-      setLastSentAt((p) => ({ ...p, [key]: Date.now() }));
+     
       await loadFeed();
     } finally {
       setSending((p) => ({ ...p, [key]: false }));
+       setLastSentAt((p) => ({ ...p, [key]: Date.now() }));
     }
   }
 
@@ -383,10 +386,11 @@ export default function FeedPage() {
 
       setReplyText((p) => ({ ...p, [parentCommentId]: "" }));
       setReplyingTo(null);
-      setLastSentAt((p) => ({ ...p, [key]: Date.now() }));
+      
       await loadFeed();
     } finally {
       setSending((p) => ({ ...p, [key]: false }));
+      setLastSentAt((p) => ({ ...p, [key]: Date.now() }));
     }
   }
 

@@ -181,6 +181,14 @@ export default function ProfilePage() {
           setMusicUrl(profileRow.music_url ?? "");
           setGlowCss(profileRow.glowcode_css ?? null);
           setGlowCrew(profileRow.glow_crew ?? []);
+          setCustomization((prev: any) => ({
+  ...prev,
+  background_url: profileRow.background_url ?? null,
+  effect: profileRow.effect ?? null,
+  music_url: profileRow.music_url ?? null,
+  custom_css: profileRow.custom_css ?? null,
+  theme_id: profileRow.theme_id ?? null,
+}));
         }
       } catch (e: any) {
         setError(e.message ?? "Failed to load profile");
@@ -229,6 +237,19 @@ export default function ProfilePage() {
         return;
       }
 
+const { error: upErr } = await supabase
+  .from("profiles")
+  .update({
+    background_url: customization.background_url ?? null,
+    effect: customization.effect ?? null,
+    music_url: customization.music_url ?? null,
+    custom_css: customization.custom_css ?? null,
+    theme_id: customization.theme_id ?? null,
+  })
+  .eq("id", authedUser.id);
+
+if (upErr) throw upErr;
+
       const uid = authedUser.id;
 
       const { data: saved, error: saveError } = await supabase
@@ -270,17 +291,9 @@ export default function ProfilePage() {
         backgroundPosition: "center",
       }
     : undefined;
-const GLOWSPACE_LOGO_BG = "/glowspace_logo.png";
-  "PASTE_YOUR_GLOWSPACE_LOGO_IMAGE_URL_HERE";
-const mainBgStyle: React.CSSProperties = {
-  backgroundImage: `url(${GLOWSPACE_LOGO_BG})`,
-  backgroundSize: "cover",
-  backgroundPosition: "center",
-  backgroundAttachment: "fixed",
-};
 
-  // 🎨 Theme preview background (so you can SEE the theme instantly)
-  const themeBgStyle = {
+// 🌈 Theme preview background (so you can SEE the theme instantly)
+const themeBgStyle = {
   backgroundImage: `url(${GLOWSPACE_BG})`,
   backgroundRepeat: "no-repeat",
   backgroundPosition: "center",
@@ -288,6 +301,20 @@ const mainBgStyle: React.CSSProperties = {
   backgroundAttachment: "fixed",
   backgroundColor: "#020617", // dark fallback so text pops
 };
+
+const resolvedBackground =
+  backgroundUrl ||
+  themeBgStyle?.backgroundImage?.replace(/^url\(|\)$/g, "") ||
+  "/glowspace-logo.png";
+
+const mainBgStyle: React.CSSProperties = {
+  backgroundImage: `url(${resolvedBackground})`,
+  backgroundSize: "cover",
+  backgroundPosition: "center",
+  backgroundAttachment: "fixed",
+};
+
+
 
   const mainClassName =
     "min-h-screen relative overflow-hidden text-slate-100 px-4 py-10";
